@@ -1,0 +1,30 @@
+environment: "production"
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout_seconds: 15
+  write_timeout_seconds: 15
+  cors_origins: []  # Configure CORS origins for production
+  rate_limit_per_minute: 100
+
+postgres:
+  dsn: "postgresql://postgres:jCmdnkLJfARZgJDxquKJYkLvhgxwZJAq@postgres.railway.internal:5432/railway"
+
+timescale:
+  dsn: "postgresql://ts_user:STRONG_PASS@timescaledb:5432/timeseries?sslmode=require"
+
+redis:
+  addr: "redis:6379"
+  password: ""  # Set from environment variable or secret
+  db: 0
+
+security:
+  api_key_pepper: ""  # MUST be set from environment variable or secret manager (e.g., VAULT, k8s secret)
+  api_key_cache_ttl_seconds: 300
+
+ingest:
+  max_payload_bytes: 5_000_000
+
+agent:
+  default_api_key_id: ""  # Optional: set default API key ID

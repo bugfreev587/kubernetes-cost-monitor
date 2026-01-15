@@ -1,0 +1,41 @@
+apiVersion: 1
+
+datasources:
+  # Production TimescaleDB (Railway) - Set as default
+  - name: TimescaleDB Production
+    type: postgres
+    access: proxy
+    url: tramway.proxy.rlwy.net:43259
+    database: railway
+    user: railway
+    secureJsonData:
+      password: g39zhg3gb1xis72ac7yv6clzbag3z2dl
+    jsonData:
+      sslmode: disable
+      timescaledb: true
+      postgresVersion: 1600
+      maxOpenConns: 100
+      maxIdleConns: 100
+      connMaxLifetime: 14400
+    isDefault: true
+    editable: true
+  
+  # Local TimescaleDB (for development) - NOT default
+  - name: TimescaleDB Local
+    type: postgres
+    access: proxy
+    url: timescaledb:5432
+    database: timeseries
+    user: ts_user
+    secureJsonData:
+      password: ts_pass
+    jsonData:
+      sslmode: disable
+      timescaledb: true
+      postgresVersion: 1600
+      maxOpenConns: 100
+      maxIdleConns: 100
+      connMaxLifetime: 14400
+    isDefault: false
+    editable: true
+
