@@ -143,5 +143,4 @@ The application uses modern CSS with:
 5. Open a Pull Request
 
 ## License
-
 This project is private and proprietary.
