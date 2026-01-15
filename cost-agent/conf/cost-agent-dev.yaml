@@ -1,0 +1,8 @@
+server_url: "http://localhost:8080/v1/ingest"  # Use localhost for local dev, host.docker.internal for Docker
+api_key: "ff1dd9ff-cbec-4dde-a9bb-65ee98bdf541:raxM8NGK_SSycTThUTCyDNaa9qQWM0VACspsPRuaejQ"  # Set via environment variable AGENT_API_KEY or API_KEY
+cluster_name: "cost-dashboard-dev"
+collect_interval: 600  # seconds (10 minutes)
+http_timeout: 30  # seconds - increased for better reliability
+use_metrics_api: true
+namespace_filter: ""  # empty = all namespaces
+

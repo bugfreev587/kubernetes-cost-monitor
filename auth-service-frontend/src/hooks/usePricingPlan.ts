@@ -1,0 +1,79 @@
+import { useState, useEffect } from 'react'
+import { useAuth } from '@clerk/clerk-react'
+
+const API_SERVER_URL = import.meta.env.VITE_API_SERVER_URL || 'http://localhost:8080'
+
+interface PricingPlanStatus {
+  hasPlan: boolean
+  planName: string | null
+  isLoading: boolean
+  error: string | null
+}
+
+export function usePricingPlan(): PricingPlanStatus {
+  const { isSignedIn, isLoaded } = useAuth()
+  const [hasPlan, setHasPlan] = useState(false)
+  const [planName, setPlanName] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isLoaded) {
+      setIsLoading(true)
+      return
+    }
+
+    if (!isSignedIn) {
+      setHasPlan(false)
+      setPlanName(null)
+      setIsLoading(false)
+      setError(null)
+      return
+    }
+
+    // TODO: Get tenant_id from user metadata once tenant assignment is implemented
+    // For now, using default tenant_id of 1
+    const tenantId = 1
+
+    const fetchPricingPlan = async () => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await fetch(`${API_SERVER_URL}/v1/admin/tenants/${tenantId}/pricing-plan`)
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            setHasPlan(false)
+            setPlanName(null)
+            setIsLoading(false)
+            return
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        const plan = data.pricing_plan
+
+        if (plan && plan.trim() !== '') {
+          setHasPlan(true)
+          setPlanName(plan)
+        } else {
+          setHasPlan(false)
+          setPlanName(null)
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch pricing plan')
+        setHasPlan(false)
+        setPlanName(null)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchPricingPlan()
+  }, [isSignedIn, isLoaded])
+
+  return { hasPlan, planName, isLoading, error }
+}
+

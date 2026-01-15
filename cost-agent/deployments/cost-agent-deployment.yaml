@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cost-agent
+  template:
+    metadata:
+      labels:
+        app: cost-agent
+    spec:
+      containers:
+      - name: cost-agent
+        image: ghcr.io/bugfreev587/cost-agent:v1.0.8
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+      imagePullSecrets:
+      - name: ghcr-secret

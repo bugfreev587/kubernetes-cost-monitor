@@ -1,0 +1,96 @@
+# Default values for cost-agent
+# This is a YAML-formatted file.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/bugfreev587/cost-agent
+  pullPolicy: IfNotPresent
+  tag: "cost-agent-v1.0.11-amd64-20260105-234955-03be71d"
+
+imagePullSecrets:
+  - name: ghcr-secret
+  # If using private registry, uncomment and set:
+  # - name: regcred
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
+
+# Agent configuration
+config:
+  # API server URL (required)
+  serverUrl: "https://api-server-production-7a9d.up.railway.app/v1/ingest"
+  
+  # API key - can be set via secret or directly (not recommended for production)
+  # If apiKey.secretName is set, it will use that instead
+  apiKey: ""
+  
+  # API key from secret (recommended)
+  apiKeySecret:
+    # Secret name containing the API key
+    secretName: "cost-agent-api-key"
+    # Key in the secret that contains the API key
+    secretKey: "api-key"
+    # If true, create the secret (you'll need to provide the value)
+    create: false
+    # API key value (only used if create is true)
+    value: ""
+  
+  clusterName: "cluster1"
+  collectInterval: 600  # seconds (10 minutes)
+  httpTimeout: 60  # seconds
+  useMetricsAPI: true
+  namespaceFilter: ""  # empty = all namespaces
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Autoscaling configuration (optional)
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+

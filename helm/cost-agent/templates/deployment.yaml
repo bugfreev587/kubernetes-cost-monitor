@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cost-agent.fullname" . }}
+  labels:
+    {{- include "cost-agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cost-agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "cost-agent.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cost-agent.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: AGENT_SERVER_URL
+              value: {{ .Values.config.serverUrl | quote }}
+            {{- if .Values.config.apiKeySecret.secretName }}
+            - name: AGENT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.config.apiKeySecret.secretName }}
+                  key: {{ .Values.config.apiKeySecret.secretKey }}
+            {{- else if .Values.config.apiKey }}
+            - name: AGENT_API_KEY
+              value: {{ .Values.config.apiKey | quote }}
+            {{- end }}
+            - name: AGENT_CLUSTER_NAME
+              value: {{ .Values.config.clusterName | quote }}
+            - name: AGENT_COLLECT_INTERVAL
+              value: {{ .Values.config.collectInterval | quote }}
+            - name: AGENT_HTTP_TIMEOUT
+              value: {{ .Values.config.httpTimeout | quote }}
+            - name: AGENT_USE_METRICS_API
+              value: {{ .Values.config.useMetricsAPI | quote }}
+            {{- if .Values.config.namespaceFilter }}
+            - name: AGENT_NAMESPACE_FILTER
+              value: {{ .Values.config.namespaceFilter | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+

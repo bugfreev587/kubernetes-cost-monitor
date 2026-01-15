@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cost-agent
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cost-agent
+rules:
+- apiGroups: [""]
+  resources: ["pods", "nodes"]
+  verbs: ["list", "get"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cost-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cost-agent
+subjects:
+- kind: ServiceAccount
+  name: cost-agent
+  namespace: default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cost-agent
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cost-agent
+  template:
+    metadata:
+      labels:
+        app: cost-agent
+    spec:
+      serviceAccountName: cost-agent
+      imagePullSecrets:
+      - name: ghcr-secret
+      containers:
+      - name: cost-agent
+        image: ghcr.io/bugfreev587/cost-agent:v1.0.10-amd64
+        env:
+        # Don't set AGENT_CONFIG_FILE - use environment variables instead
+        - name: AGENT_SERVER_URL
+          value: "https://api-server-production-7a9d.up.railway.app/v1/ingest"  # HTTPS, no port needed (443 is default)
+        - name: AGENT_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cost-agent-api-key
+              key: api-key
+        - name: AGENT_CLUSTER_NAME
+          value: "cluster1"  # Update with your cluster name
+        - name: AGENT_COLLECT_INTERVAL
+          value: "60"  # seconds
+        - name: AGENT_HTTP_TIMEOUT
+          value: "60"  # seconds - increased for OKE to Railway network latency
+        - name: AGENT_USE_METRICS_API
+          value: "true"
+        # Optional: uncomment to filter specific namespace
+        # - name: AGENT_NAMESPACE_FILTER
+        #   value: "default"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+
