@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -276,8 +275,8 @@ func (h *ClerkWebhookHandler) syncGrafanaOrg(ctx context.Context, tenantID uint)
 // This would be called from your frontend after user signup
 func (h *ClerkWebhookHandler) UpdateUserMetadata(c *gin.Context) {
 	var req struct {
-		Email    string `json:"email" binding:"required"`
-		TenantID uint   `json:"tenant_id" binding:"required"`
+		Email    string   `json:"email" binding:"required"`
+		TenantID uint     `json:"tenant_id" binding:"required"`
 		Roles    []string `json:"roles"`
 	}
 
