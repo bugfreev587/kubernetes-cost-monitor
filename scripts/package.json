@@ -1,0 +1,22 @@
+{
+  "name": "k8s-cost-monitor-scripts",
+  "version": "1.0.0",
+  "description": "Management scripts for Kubernetes Cost Monitor",
+  "type": "module",
+  "scripts": {
+    "grafana:sync": "tsx grafana-org-manager.ts sync-all",
+    "grafana:list": "tsx grafana-org-manager.ts list-orgs",
+    "grafana:create": "tsx grafana-org-manager.ts create-org",
+    "grafana:add-user": "tsx grafana-org-manager.ts add-user"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
