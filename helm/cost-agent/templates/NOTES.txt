@@ -1,0 +1,57 @@
+
+===============================================================================
+  COST-AGENT DEPLOYMENT SUMMARY
+===============================================================================
+
+Release:    {{ .Release.Name }}
+Namespace:  {{ .Release.Namespace }}
+Revision:   {{ .Release.Revision }}
+
+-------------------------------------------------------------------------------
+  CONFIGURATION
+-------------------------------------------------------------------------------
+
+  Image:            {{ .Values.image.repository }}:{{ .Values.image.tag }}
+  Cluster Name:     {{ .Values.config.clusterName }}
+  Server URL:       {{ .Values.config.serverUrl }}
+  Collect Interval: {{ .Values.config.collectInterval }}s ({{ div .Values.config.collectInterval 60 }} min)
+  HTTP Timeout:     {{ .Values.config.httpTimeout }}s
+  Use Metrics API:  {{ .Values.config.useMetricsAPI }}
+  Namespace Filter: {{ .Values.config.namespaceFilter | default "all namespaces" }}
+
+  Priority 1 Features:
+    - Collect Pod Labels:       {{ .Values.config.collectPodLabels }}
+    - Collect Container Metrics: {{ .Values.config.collectContainerMetrics }}
+
+-------------------------------------------------------------------------------
+  USEFUL COMMANDS
+-------------------------------------------------------------------------------
+
+  # Check deployment status
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "cost-agent.name" . }}
+
+  # View agent logs
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "cost-agent.name" . }} -f
+
+  # Check configuration
+  kubectl get deployment -n {{ .Release.Namespace }} {{ include "cost-agent.fullname" . }} -o yaml
+
+  # Restart the agent (after config changes)
+  kubectl rollout restart deployment -n {{ .Release.Namespace }} {{ include "cost-agent.fullname" . }}
+
+{{- if not .Values.config.apiKeySecret.secretName }}
+
+-------------------------------------------------------------------------------
+  ⚠️  WARNING: No API key secret configured!
+-------------------------------------------------------------------------------
+
+  The agent requires an API key to authenticate with the server.
+  Create a secret:
+
+    kubectl create secret generic cost-agent-api-key \
+      --from-literal=api-key=<keyid>:<secret> \
+      -n {{ .Release.Namespace }}
+
+{{- end }}
+
+===============================================================================

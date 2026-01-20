@@ -50,7 +50,7 @@ config:
     value: ""
   
   clusterName: "cluster1"
-  collectInterval: 600  # seconds (10 minutes)
+  collectInterval: 60  # seconds (1 minute)
   httpTimeout: 60  # seconds
   useMetricsAPI: true
   namespaceFilter: ""  # empty = all namespaces
