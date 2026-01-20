@@ -6,7 +6,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/bugfreev587/cost-agent
   pullPolicy: IfNotPresent
-  tag: "cost-agent-v1.0.11-amd64-20260105-234955-03be71d"
+  tag: "cost-agent-v1.0.11-amd64-20260120-102416-68858e1"
 
 imagePullSecrets:
   - name: ghcr-secret
@@ -54,6 +54,10 @@ config:
   httpTimeout: 60  # seconds
   useMetricsAPI: true
   namespaceFilter: ""  # empty = all namespaces
+
+  # Priority 1 Features (enabled by default)
+  collectPodLabels: true  # Collect pod labels for cost allocation
+  collectContainerMetrics: true  # Collect container-level metrics for sidecar attribution
 
 podAnnotations: {}
 

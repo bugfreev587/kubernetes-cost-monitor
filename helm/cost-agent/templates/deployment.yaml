@@ -56,6 +56,10 @@ spec:
             - name: AGENT_NAMESPACE_FILTER
               value: {{ .Values.config.namespaceFilter | quote }}
             {{- end }}
+            - name: AGENT_COLLECT_POD_LABELS
+              value: {{ .Values.config.collectPodLabels | quote }}
+            - name: AGENT_COLLECT_CONTAINER_METRICS
+              value: {{ .Values.config.collectContainerMetrics | quote }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.nodeSelector }}
