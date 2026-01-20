@@ -47,7 +47,7 @@ Should show populated labels, phase, qos_class!
 
 ### Cost by Team
 ```sql
-SELECT labels->>'team', SUM(cpu_usage_millicores)
+SELECT labels->>'team', SUM(cpu_millicores)
 FROM pod_metrics
 WHERE time > NOW() - INTERVAL '24 hours'
   AND phase = 'Running'
@@ -56,12 +56,12 @@ GROUP BY labels->>'team';
 
 ### Over-Provisioned Pods
 ```sql
-SELECT pod_name, qos_class, cpu_request_millicores, AVG(cpu_usage_millicores)
+SELECT pod_name, qos_class, cpu_request_millicores, AVG(cpu_millicores)
 FROM pod_metrics
 WHERE time > NOW() - INTERVAL '7 days'
   AND qos_class = 'Burstable'
 GROUP BY pod_name, qos_class, cpu_request_millicores
-HAVING AVG(cpu_usage_millicores) < cpu_request_millicores * 0.5;
+HAVING AVG(cpu_millicores) < cpu_request_millicores * 0.5;
 ```
 
 ## Troubleshooting

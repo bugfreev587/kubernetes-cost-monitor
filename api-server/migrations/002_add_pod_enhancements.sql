@@ -53,7 +53,7 @@ COMMENT ON COLUMN pod_metrics.qos_class IS
   'Quality of Service class: Guaranteed (requests = limits), Burstable (requests < limits), BestEffort (no requests/limits)';
 
 COMMENT ON COLUMN pod_metrics.containers IS
-  'Array of container-level metrics in JSON format. Each element contains: container_name, cpu_usage_millicores, memory_usage_bytes, cpu_request_millicores, memory_request_bytes, cpu_limit_millicores, memory_limit_bytes';
+  'Array of container-level metrics in JSON format. Each element contains: container_name, cpu_millicores, memory_bytes, cpu_request_millicores, memory_request_bytes, cpu_limit_millicores, memory_limit_bytes';
 
 -- ============================
 -- Example Queries Using New Fields
@@ -63,8 +63,8 @@ COMMENT ON COLUMN pod_metrics.containers IS
 -- Query 1: Cost by team (using labels)
 SELECT
   labels->>'team' AS team,
-  SUM(cpu_usage_millicores) / 1000.0 AS total_cpu_cores,
-  SUM(memory_usage_bytes) / 1024 / 1024 / 1024 AS total_memory_gb
+  SUM(cpu_millicores) / 1000.0 AS total_cpu_cores,
+  SUM(memory_bytes) / 1024 / 1024 / 1024 AS total_memory_gb
 FROM pod_metrics
 WHERE
   time > NOW() - INTERVAL '24 hours'
@@ -74,7 +74,7 @@ GROUP BY labels->>'team'
 ORDER BY total_cpu_cores DESC;
 
 -- Query 2: Only count running pods (accurate billing)
-SELECT COUNT(*), AVG(cpu_usage_millicores)
+SELECT COUNT(*), AVG(cpu_millicores)
 FROM pod_metrics
 WHERE
   time > NOW() - INTERVAL '1 hour'
@@ -87,14 +87,14 @@ SELECT
   pod_name,
   qos_class,
   cpu_request_millicores,
-  cpu_usage_millicores,
-  (cpu_request_millicores - cpu_usage_millicores) AS wasted_cpu_millicores
+  cpu_millicores,
+  (cpu_request_millicores - cpu_millicores) AS wasted_cpu_millicores
 FROM pod_metrics
 WHERE
   time > NOW() - INTERVAL '24 hours'
   AND tenant_id = 1
   AND qos_class IN ('Burstable', 'BestEffort')
-  AND cpu_usage_millicores < cpu_request_millicores * 0.5
+  AND cpu_millicores < cpu_request_millicores * 0.5
 ORDER BY wasted_cpu_millicores DESC
 LIMIT 20;
 
@@ -102,8 +102,8 @@ LIMIT 20;
 SELECT
   labels->>'environment' AS environment,
   COUNT(DISTINCT pod_name) AS pod_count,
-  SUM(cpu_usage_millicores) AS total_cpu,
-  SUM(memory_usage_bytes) / 1024 / 1024 / 1024 AS total_memory_gb
+  SUM(cpu_millicores) AS total_cpu,
+  SUM(memory_bytes) / 1024 / 1024 / 1024 AS total_memory_gb
 FROM pod_metrics
 WHERE
   time > NOW() - INTERVAL '7 days'
@@ -115,8 +115,8 @@ GROUP BY labels->>'environment';
 SELECT
   pod_name,
   jsonb_array_elements(containers)->>'container_name' AS container_name,
-  (jsonb_array_elements(containers)->>'cpu_usage_millicores')::bigint AS cpu_usage,
-  (jsonb_array_elements(containers)->>'memory_usage_bytes')::bigint / 1024 / 1024 AS memory_mb
+  (jsonb_array_elements(containers)->>'cpu_millicores')::bigint AS cpu_usage,
+  (jsonb_array_elements(containers)->>'memory_bytes')::bigint / 1024 / 1024 AS memory_mb
 FROM pod_metrics
 WHERE
   time > NOW() - INTERVAL '1 hour'
@@ -128,8 +128,8 @@ LIMIT 100;
 SELECT
   pod_name,
   container_name,
-  SUM((container_metrics->>'cpu_usage_millicores')::bigint) AS total_cpu,
-  SUM((container_metrics->>'memory_usage_bytes')::bigint) / 1024 / 1024 / 1024 AS total_memory_gb
+  SUM((container_metrics->>'cpu_millicores')::bigint) AS total_cpu,
+  SUM((container_metrics->>'memory_bytes')::bigint) / 1024 / 1024 / 1024 AS total_memory_gb
 FROM pod_metrics,
   jsonb_array_elements(containers) AS container_metrics(container_metrics)
 WHERE

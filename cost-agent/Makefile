@@ -3,7 +3,6 @@
 ### ============================================================
 GH_USER        ?= bugfreev587
 IMAGE_NAME     ?= cost-agent
-VERSION        ?= v1.0.11
 # Generate build metadata once and reuse (prevents timestamp mismatch)
 BUILD_DATE     := $(shell date +%Y%m%d)
 BUILD_TIME     := $(shell date +%H%M%S)
@@ -33,8 +32,8 @@ else
 	ARCH := $(DEFAULT_ARCH)
 endif
 
-# Compose unique image tag: cost-agent-<version>-<arch>-<date>-<time>-<commit>
-IMAGE_TAG      ?= cost-agent-$(VERSION)-$(ARCH)-$(BUILD_DATE)-$(BUILD_TIME)-$(GIT_COMMIT)
+# Compose unique image tag: cost-agent-<arch>-<date>-<time>-<commit>
+IMAGE_TAG      ?= cost-agent-$(ARCH)-$(BUILD_DATE)-$(BUILD_TIME)-$(GIT_COMMIT)
 REGISTRY       ?= ghcr.io/$(GH_USER)
 FULL_IMAGE     ?= $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
 
@@ -124,7 +123,6 @@ undeploy:
 info:
 	@echo "Image: $(FULL_IMAGE)"
 	@echo "Image Tag: $(IMAGE_TAG)"
-	@echo "Version: $(VERSION)"
 	@echo "Platform: $(PLATFORM)"
 	@echo "Architecture: $(ARCH)"
 	@echo "Build Date: $(BUILD_DATE)"

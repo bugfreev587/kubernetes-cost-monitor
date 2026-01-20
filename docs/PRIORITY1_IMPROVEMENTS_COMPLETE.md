@@ -242,8 +242,8 @@ env:
 SELECT
   labels->>'team' AS team,
   COUNT(DISTINCT pod_name) AS pod_count,
-  SUM(cpu_usage_millicores) / 1000.0 AS total_cpu_cores,
-  SUM(memory_usage_bytes) / 1024 / 1024 / 1024 AS total_memory_gb
+  SUM(cpu_millicores) / 1000.0 AS total_cpu_cores,
+  SUM(memory_bytes) / 1024 / 1024 / 1024 AS total_memory_gb
 FROM pod_metrics
 WHERE
   time > NOW() - INTERVAL '7 days'
@@ -259,8 +259,8 @@ ORDER BY total_cpu_cores DESC;
 ```sql
 SELECT
   labels->>'environment' AS environment,
-  SUM(cpu_usage_millicores) AS total_cpu,
-  SUM(memory_usage_bytes) / 1024 / 1024 / 1024 AS total_memory_gb
+  SUM(cpu_millicores) AS total_cpu,
+  SUM(memory_bytes) / 1024 / 1024 / 1024 AS total_memory_gb
 FROM pod_metrics
 WHERE
   time > NOW() - INTERVAL '24 hours'
@@ -278,8 +278,8 @@ SELECT
   pod_name,
   qos_class,
   cpu_request_millicores,
-  AVG(cpu_usage_millicores) AS avg_cpu_usage,
-  cpu_request_millicores - AVG(cpu_usage_millicores) AS wasted_cpu
+  AVG(cpu_millicores) AS avg_cpu_usage,
+  cpu_request_millicores - AVG(cpu_millicores) AS wasted_cpu
 FROM pod_metrics
 WHERE
   time > NOW() - INTERVAL '7 days'
@@ -287,7 +287,7 @@ WHERE
   AND phase = 'Running'
   AND qos_class IN ('Burstable', 'BestEffort')
 GROUP BY namespace, pod_name, qos_class, cpu_request_millicores
-HAVING AVG(cpu_usage_millicores) < cpu_request_millicores * 0.5
+HAVING AVG(cpu_millicores) < cpu_request_millicores * 0.5
 ORDER BY wasted_cpu DESC
 LIMIT 20;
 ```
@@ -298,8 +298,8 @@ LIMIT 20;
 SELECT
   pod_name,
   container_data->>'container_name' AS container_name,
-  (container_data->>'cpu_usage_millicores')::bigint / 1000.0 AS cpu_cores,
-  (container_data->>'memory_usage_bytes')::bigint / 1024 / 1024 / 1024 AS memory_gb
+  (container_data->>'cpu_millicores')::bigint / 1000.0 AS cpu_cores,
+  (container_data->>'memory_bytes')::bigint / 1024 / 1024 / 1024 AS memory_gb
 FROM pod_metrics,
   jsonb_array_elements(containers) AS container_data
 WHERE
@@ -317,11 +317,11 @@ LIMIT 100;
 SELECT
   pod_name,
   jsonb_array_length(containers) AS container_count,
-  SUM((container_data->>'cpu_usage_millicores')::bigint) AS total_pod_cpu,
+  SUM((container_data->>'cpu_millicores')::bigint) AS total_pod_cpu,
   jsonb_agg(
     jsonb_build_object(
       'name', container_data->>'container_name',
-      'cpu', container_data->>'cpu_usage_millicores'
+      'cpu', container_data->>'cpu_millicores'
     )
   ) AS container_breakdown
 FROM pod_metrics,
