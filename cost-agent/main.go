@@ -30,11 +30,11 @@ func main() {
 	}
 
 	// create collector
-	col, err := collector.NewCollector(cfg.UseMetricsAPI, cfg.ClusterName, cfg.NamespaceFilter)
+	col, err := collector.NewCollector(cfg.UseMetricsAPI, cfg.ClusterName, cfg.NamespaceFilter, cfg.CollectPodLabels, cfg.CollectContainerMetrics)
 	if err != nil {
 		log.Fatalf("collector init: %v", err)
 	}
-	log.Printf("collector initialized")
+	log.Printf("collector initialized (collectLabels=%v, collectContainers=%v)", cfg.CollectPodLabels, cfg.CollectContainerMetrics)
 	// create sender
 	s := sender.NewSender(cfg.ServerURL, cfg.APIKey, cfg.HTTPTimeout)
 	log.Printf("sender created")
@@ -72,6 +72,26 @@ func main() {
 	}
 }
 
+// convertContainers converts collector.ContainerMetric to sender.ContainerMetricData
+func convertContainers(containers []collector.ContainerMetric) []sender.ContainerMetricData {
+	if containers == nil {
+		return nil
+	}
+	result := make([]sender.ContainerMetricData, len(containers))
+	for i, c := range containers {
+		result[i] = sender.ContainerMetricData{
+			ContainerName:        c.ContainerName,
+			CPUUsageMillicores:   c.CPUUsageMillicores,
+			MemoryUsageBytes:     c.MemoryUsageBytes,
+			CPURequestMillicores: c.CPURequestMillicores,
+			MemoryRequestBytes:   c.MemoryRequestBytes,
+			CPULimitMillicores:   c.CPULimitMillicores,
+			MemoryLimitBytes:     c.MemoryLimitBytes,
+		}
+	}
+	return result
+}
+
 func collectAndSend(ctx context.Context, c *collector.Collector, s *sender.Sender) error {
 	ctx2, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -97,7 +117,7 @@ func collectAndSend(ctx context.Context, c *collector.Collector, s *sender.Sende
 	}
 	// Add individual pod metrics
 	for _, p := range pods {
-		payload.PodMetrics = append(payload.PodMetrics, sender.PodMetricData{
+		podData := sender.PodMetricData{
 			PodName:              p.PodName,
 			Namespace:            p.Namespace,
 			NodeName:             p.NodeName,
@@ -107,7 +127,13 @@ func collectAndSend(ctx context.Context, c *collector.Collector, s *sender.Sende
 			MemoryRequestBytes:   p.MemoryRequestBytes,
 			CPULimitMillicores:   p.CPULimitMillicores,
 			MemoryLimitBytes:     p.MemoryLimitBytes,
-		})
+			// New Priority 1 fields
+			Labels:     p.Labels,
+			Phase:      p.Phase,
+			QoSClass:   p.QoSClass,
+			Containers: convertContainers(p.Containers),
+		}
+		payload.PodMetrics = append(payload.PodMetrics, podData)
 	}
 	// Add namespace aggregates for backward compatibility
 	for _, a := range aggs {

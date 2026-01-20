@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -48,6 +49,39 @@ func (db *TimescaleDB) Health(ctx context.Context) error {
 func (db *TimescaleDB) InsertPodMetric(ctx context.Context, timeStamp time.Time, tenantID int64, cluster, namespace, pod, node string, cpuMilli, memBytes, cpuRequest, memRequest, cpuLimit, memLimit int64) error {
 	q := `INSERT INTO pod_metrics (time, tenant_id, cluster_name, namespace, pod_name, node_name, cpu_millicores, memory_bytes, cpu_request_millicores, memory_request_bytes, cpu_limit_millicores, memory_limit_bytes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`
 	_, err := db.pool.Exec(ctx, q, timeStamp, tenantID, cluster, namespace, pod, node, cpuMilli, memBytes, cpuRequest, memRequest, cpuLimit, memLimit)
+	return err
+}
+
+// InsertPodMetricWithExtras inserts pod metrics with Priority 1 enhancements (labels, phase, QoS, containers)
+func (db *TimescaleDB) InsertPodMetricWithExtras(ctx context.Context, timeStamp time.Time, tenantID int64, cluster, namespace, pod, node string, cpuMilli, memBytes, cpuRequest, memRequest, cpuLimit, memLimit int64, labels map[string]string, phase, qosClass string, containers interface{}) error {
+	// Convert labels and containers to JSON
+	var labelsJSON []byte
+	var containersJSON []byte
+	var err error
+
+	if labels != nil && len(labels) > 0 {
+		labelsJSON, err = json.Marshal(labels)
+		if err != nil {
+			return fmt.Errorf("failed to marshal labels: %w", err)
+		}
+	}
+
+	if containers != nil {
+		containersJSON, err = json.Marshal(containers)
+		if err != nil {
+			return fmt.Errorf("failed to marshal containers: %w", err)
+		}
+	}
+
+	q := `INSERT INTO pod_metrics
+		(time, tenant_id, cluster_name, namespace, pod_name, node_name,
+		 cpu_millicores, memory_bytes, cpu_request_millicores, memory_request_bytes,
+		 cpu_limit_millicores, memory_limit_bytes, labels, phase, qos_class, containers)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`
+
+	_, err = db.pool.Exec(ctx, q, timeStamp, tenantID, cluster, namespace, pod, node,
+		cpuMilli, memBytes, cpuRequest, memRequest, cpuLimit, memLimit,
+		labelsJSON, phase, qosClass, containersJSON)
 	return err
 }
 

@@ -9,16 +9,32 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type PodMetricData struct {
-	PodName              string `json:"pod_name"`
-	Namespace            string `json:"namespace"`
-	NodeName             string `json:"node_name"`
+// ContainerMetricData represents metrics for a single container
+type ContainerMetricData struct {
+	ContainerName        string `json:"container_name"`
 	CPUUsageMillicores   int64  `json:"cpu_usage_millicores"`
 	MemoryUsageBytes     int64  `json:"memory_usage_bytes"`
 	CPURequestMillicores int64  `json:"cpu_request_millicores"`
 	MemoryRequestBytes   int64  `json:"memory_request_bytes"`
 	CPULimitMillicores   int64  `json:"cpu_limit_millicores,omitempty"`
 	MemoryLimitBytes     int64  `json:"memory_limit_bytes,omitempty"`
+}
+
+type PodMetricData struct {
+	PodName              string                 `json:"pod_name"`
+	Namespace            string                 `json:"namespace"`
+	NodeName             string                 `json:"node_name"`
+	CPUUsageMillicores   int64                  `json:"cpu_usage_millicores"`
+	MemoryUsageBytes     int64                  `json:"memory_usage_bytes"`
+	CPURequestMillicores int64                  `json:"cpu_request_millicores"`
+	MemoryRequestBytes   int64                  `json:"memory_request_bytes"`
+	CPULimitMillicores   int64                  `json:"cpu_limit_millicores,omitempty"`
+	MemoryLimitBytes     int64                  `json:"memory_limit_bytes,omitempty"`
+	// New Priority 1 fields
+	Labels     map[string]string      `json:"labels,omitempty"`
+	Phase      string                 `json:"phase,omitempty"`
+	QoSClass   string                 `json:"qos_class,omitempty"`
+	Containers []ContainerMetricData  `json:"containers,omitempty"`
 }
 
 type AgentMetricsPayload struct {
@@ -69,7 +85,13 @@ func (s *Server) makeIngestHandler() gin.HandlerFunc {
 		}
 		// insert individual pod metrics
 		for _, pm := range p.PodMetrics {
-			_ = s.timescaleDB.InsertPodMetric(ctx, ts, tenantID, p.ClusterName, pm.Namespace, pm.PodName, pm.NodeName, pm.CPUUsageMillicores, pm.MemoryUsageBytes, pm.CPURequestMillicores, pm.MemoryRequestBytes, pm.CPULimitMillicores, pm.MemoryLimitBytes)
+			// Use new function if enhanced fields are present
+			if pm.Labels != nil || pm.Phase != "" || pm.QoSClass != "" || pm.Containers != nil {
+				_ = s.timescaleDB.InsertPodMetricWithExtras(ctx, ts, tenantID, p.ClusterName, pm.Namespace, pm.PodName, pm.NodeName, pm.CPUUsageMillicores, pm.MemoryUsageBytes, pm.CPURequestMillicores, pm.MemoryRequestBytes, pm.CPULimitMillicores, pm.MemoryLimitBytes, pm.Labels, pm.Phase, pm.QoSClass, pm.Containers)
+			} else {
+				// Fallback to old function for backward compatibility
+				_ = s.timescaleDB.InsertPodMetric(ctx, ts, tenantID, p.ClusterName, pm.Namespace, pm.PodName, pm.NodeName, pm.CPUUsageMillicores, pm.MemoryUsageBytes, pm.CPURequestMillicores, pm.MemoryRequestBytes, pm.CPULimitMillicores, pm.MemoryLimitBytes)
+			}
 		}
 		// for namespaceCost we write synthetic pod metrics aggregated by namespace (backward compatibility)
 		for _, ns := range p.NamespaceCosts {

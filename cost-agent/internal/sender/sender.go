@@ -22,16 +22,32 @@ type NamespaceCostData struct {
 	EstimatedCostUSD   float64 `json:"estimated_cost_usd"`
 }
 
-type PodMetricData struct {
-	PodName              string `json:"pod_name"`
-	Namespace            string `json:"namespace"`
-	NodeName             string `json:"node_name"`
+// ContainerMetricData represents metrics for a single container
+type ContainerMetricData struct {
+	ContainerName        string `json:"container_name"`
 	CPUUsageMillicores   int64  `json:"cpu_usage_millicores"`
 	MemoryUsageBytes     int64  `json:"memory_usage_bytes"`
 	CPURequestMillicores int64  `json:"cpu_request_millicores"`
 	MemoryRequestBytes   int64  `json:"memory_request_bytes"`
 	CPULimitMillicores   int64  `json:"cpu_limit_millicores,omitempty"`
 	MemoryLimitBytes     int64  `json:"memory_limit_bytes,omitempty"`
+}
+
+type PodMetricData struct {
+	PodName              string                 `json:"pod_name"`
+	Namespace            string                 `json:"namespace"`
+	NodeName             string                 `json:"node_name"`
+	CPUUsageMillicores   int64                  `json:"cpu_usage_millicores"`
+	MemoryUsageBytes     int64                  `json:"memory_usage_bytes"`
+	CPURequestMillicores int64                  `json:"cpu_request_millicores"`
+	MemoryRequestBytes   int64                  `json:"memory_request_bytes"`
+	CPULimitMillicores   int64                  `json:"cpu_limit_millicores,omitempty"`
+	MemoryLimitBytes     int64                  `json:"memory_limit_bytes,omitempty"`
+	// New Priority 1 fields
+	Labels     map[string]string      `json:"labels,omitempty"`
+	Phase      string                 `json:"phase,omitempty"`
+	QoSClass   string                 `json:"qos_class,omitempty"`
+	Containers []ContainerMetricData  `json:"containers,omitempty"`
 }
 
 type AgentMetricsPayload struct {
