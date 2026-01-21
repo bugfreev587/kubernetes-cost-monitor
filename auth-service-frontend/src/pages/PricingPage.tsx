@@ -17,51 +17,50 @@ interface PricingPlan {
 
 const plans: PricingPlan[] = [
   {
-    name: 'Basic',
+    name: 'Starter',
     price: 0,
     period: 'month',
-    description: 'Perfect for getting started with Kubernetes cost monitoring',
+    description: 'Perfect for trying out Kubernetes cost monitoring',
     features: [
-      'Up to 3 clusters',
+      '1 cluster',
+      'Up to 5 nodes',
+      '7-day data retention',
       'Basic cost tracking',
-      'Daily cost reports',
       'Email support',
-      'Community access',
     ],
     ctaText: 'Get Started Free',
     ctaLink: '/sign-up',
   },
   {
-    name: 'Standard',
+    name: 'Premium',
     price: 49,
     period: 'month',
     description: 'Ideal for growing teams with multiple clusters',
     features: [
       'Up to 10 clusters',
+      'Up to 100 nodes',
+      '30-day data retention',
       'Advanced cost analytics',
-      'Real-time cost monitoring',
-      'Custom cost alerts',
-      'Priority email support',
       'Cost optimization recommendations',
-      'Historical data (30 days)',
+      'Custom alerts',
+      'Priority support',
     ],
-    ctaText: 'Start Free Trial',
+    ctaText: 'Start Premium',
     ctaLink: '/sign-up',
     popular: true,
   },
   {
-    name: 'Professional',
+    name: 'Business',
     price: 199,
     period: 'month',
     description: 'Enterprise-grade solution for large-scale deployments',
     features: [
       'Unlimited clusters',
-      'Enterprise cost analytics',
-      'Real-time monitoring & alerts',
-      'Advanced cost optimization',
+      'Unlimited nodes',
+      '1 year data retention',
+      'Enterprise analytics',
       '24/7 priority support',
       'Custom integrations',
-      'Historical data (1 year)',
       'Dedicated account manager',
       'SLA guarantee',
     ],
@@ -194,7 +193,7 @@ export default function PricingPage() {
 
           <div className="pricing-footer">
             <p className="pricing-note">
-              All plans include a 14-day free trial. No credit card required.
+              Starter plan is free forever. No credit card required.
             </p>
           </div>
         </div>

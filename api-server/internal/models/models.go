@@ -6,18 +6,33 @@ import (
 	"github.com/lib/pq"
 )
 
+// PricingPlan represents a subscription tier with its limits
+type PricingPlan struct {
+	ID            uint           `gorm:"primaryKey" json:"id"`
+	Name          string         `gorm:"uniqueIndex" json:"name"`          // 'Starter', 'Premium', 'Business'
+	DisplayName   string         `json:"display_name"`
+	PriceCents    int            `json:"price_cents"`                      // Price in cents (0, 4900, 19900)
+	ClusterLimit  int            `json:"cluster_limit"`                    // -1 = unlimited
+	NodeLimit     int            `json:"node_limit"`                       // -1 = unlimited
+	UserLimit     int            `json:"user_limit"`                       // -1 = unlimited
+	RetentionDays int            `json:"retention_days"`
+	Features      pq.StringArray `gorm:"type:text[]" json:"features"`
+	CreatedAt     time.Time      `json:"created_at"`
+}
+
 type Tenant struct {
-	ID          uint `gorm:"primaryKey"`
+	ID          uint   `gorm:"primaryKey"`
 	Name        string
-	PricingPlan string `gorm:"column:pricing_plan"` // 'Basic', 'Standard', 'Professional', or empty
+	PricingPlan string `gorm:"column:pricing_plan;default:Starter"` // 'Starter', 'Premium', 'Business'
 	CreatedAt   time.Time
 }
 
 type User struct {
-	ID        uint `gorm:"primaryKey"`
+	ID        uint   `gorm:"primaryKey"`
 	TenantID  uint
 	Email     string `gorm:"uniqueIndex"`
 	Name      string
+	Role      string `gorm:"default:viewer"` // 'admin', 'editor', 'viewer'
 	CreatedAt time.Time
 }
 

@@ -112,11 +112,20 @@ func (h *ClerkWebhookHandler) handleUserCreated(c *gin.Context, data map[string]
 		log.Printf("Created new tenant %d for user %s", tenantID, email)
 	}
 
+	// Determine user role: first user of tenant is admin, others are viewers
+	role := "viewer"
+	var existingUserCount int64
+	h.db.Model(&models.User{}).Where("tenant_id = ?", tenantID).Count(&existingUserCount)
+	if existingUserCount == 0 {
+		role = "admin" // First user becomes admin
+	}
+
 	// Create user in database
 	user := models.User{
 		TenantID:  tenantID,
 		Email:     email,
 		Name:      name,
+		Role:      role,
 		CreatedAt: time.Now(),
 	}
 
@@ -243,7 +252,7 @@ func (h *ClerkWebhookHandler) createDefaultTenant(ctx context.Context, userName,
 
 	tenant := models.Tenant{
 		Name:        tenantName,
-		PricingPlan: "Basic", // Default plan
+		PricingPlan: "Starter", // Default plan (free forever with limits)
 		CreatedAt:   time.Now(),
 	}
 
@@ -309,12 +318,14 @@ func (h *ClerkWebhookHandler) UpdateUserMetadata(c *gin.Context) {
 	// Return metadata that should be set in Clerk
 	metadata := map[string]interface{}{
 		"tenant_id": req.TenantID,
+		"role":      user.Role,
 		"roles":     req.Roles,
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":  "user updated",
 		"metadata": metadata,
+		"role":     user.Role,
 		"note":     "Update this metadata in Clerk via their API or dashboard",
 	})
 }

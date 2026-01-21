@@ -21,10 +21,11 @@ type Server struct {
 	timescaleDB  app_interfaces.TimescaleService
 	redisClient  app_interfaces.RedisService
 	apiKeySvc    *services.APIKeyService
+	planSvc      *services.PlanService
 	router       *gin.Engine
 }
 
-func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, timescaleDB app_interfaces.TimescaleService, redisClient app_interfaces.RedisService, apiKeySvc *services.APIKeyService) *Server {
+func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, timescaleDB app_interfaces.TimescaleService, redisClient app_interfaces.RedisService, apiKeySvc *services.APIKeyService, planSvc *services.PlanService) *Server {
 	if cfg.Environment == "production" || cfg.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -36,6 +37,7 @@ func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, ti
 		timescaleDB:  timescaleDB,
 		redisClient:  redisClient,
 		apiKeySvc:    apiKeySvc,
+		planSvc:      planSvc,
 		router:       router,
 	}
 
@@ -63,10 +65,15 @@ func (s *Server) setupRoutes() {
 
 	// --- health ---
 	s.router.GET("/v1/health", s.healthCheckHandler())
+
+	// --- public pricing plans ---
+	s.router.GET("/v1/plans", s.listPricingPlansHandler())
+
 	// --- admin ---
 	s.router.POST("/v1/admin/api_keys", s.makeCreateAPIKeyHandler())
 	s.router.GET("/v1/admin/tenants/:tenant_id/pricing-plan", s.getTenantPricingPlanHandler())
 	s.router.PATCH("/v1/admin/tenants/:tenant_id/pricing-plan", s.updateTenantPricingPlanHandler())
+	s.router.GET("/v1/admin/tenants/:tenant_id/usage", s.getTenantUsageHandler())
 
 	// --- agent ingest (protected with API Key Middleware) ---
 	authMiddleware := middleware.NewAPIKeyMiddleware(s.apiKeySvc)

@@ -2,10 +2,12 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/bugfreev587/k8s-cost-api-server/internal/models"
+	"github.com/bugfreev587/k8s-cost-api-server/internal/services"
 	"github.com/gin-gonic/gin"
 )
 
@@ -79,6 +81,23 @@ func (s *Server) makeIngestHandler() gin.HandlerFunc {
 		}
 		ak := akI.(*models.APIKey) // import models if needed
 		tenantID := int64(ak.TenantID)
+
+		// Check cluster limit before accepting metrics
+		if err := s.planSvc.CheckClusterLimit(ctx, tenantID, p.ClusterName); err != nil {
+			if planErr, ok := err.(*services.PlanLimitError); ok {
+				c.JSON(http.StatusForbidden, gin.H{
+					"error":   "cluster_limit_exceeded",
+					"message": fmt.Sprintf("Plan '%s' allows %d cluster(s). Upgrade your plan to add more clusters.", planErr.PlanName, planErr.Limit),
+					"current": planErr.Current,
+					"limit":   planErr.Limit,
+				})
+				return
+			}
+			// Other errors (database issues, etc.)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify plan limits", "details": err.Error()})
+			return
+		}
+
 		// insert node metrics
 		for _, nm := range p.NodeMetrics {
 			_ = s.timescaleDB.InsertNodeMetric(ctx, ts, tenantID, p.ClusterName, nm.NodeName, nm.InstanceType, nm.CPUCapacity, nm.MemoryCapacity, nm.HourlyCostUSD)

@@ -28,12 +28,12 @@ func (s *Server) updateTenantPricingPlanHandler() gin.HandlerFunc {
 
 		// Validate pricing plan value
 		validPlans := map[string]bool{
-			"Basic":        true,
-			"Standard":     true,
-			"Professional": true,
+			"Starter":  true,
+			"Premium":  true,
+			"Business": true,
 		}
 		if !validPlans[req.PricingPlan] {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pricing_plan. Must be one of: Basic, Standard, Professional"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pricing_plan. Must be one of: Starter, Premium, Business"})
 			return
 		}
 
@@ -95,5 +95,48 @@ func (s *Server) getTenantPricingPlanHandler() gin.HandlerFunc {
 			"tenant_id":    tenant.ID,
 			"pricing_plan": tenant.PricingPlan,
 		})
+	}
+}
+
+// listPricingPlansHandler returns all available pricing plans
+func (s *Server) listPricingPlansHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var plans []models.PricingPlan
+		db := s.postgresDB.GetPostgresDB()
+		if err := db.Order("price_cents ASC").Find(&plans).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch plans"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"plans": plans,
+		})
+	}
+}
+
+// getTenantUsageHandler returns the current usage vs limits for a tenant
+func (s *Server) getTenantUsageHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID := c.Param("tenant_id")
+		if tenantID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+			return
+		}
+
+		// Parse tenant_id as uint
+		var tenantIDUint uint
+		if _, err := fmt.Sscanf(tenantID, "%d", &tenantIDUint); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tenant_id format"})
+			return
+		}
+
+		// Get tenant usage from plan service
+		usage, err := s.planSvc.GetTenantUsage(c.Request.Context(), tenantIDUint)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, usage)
 	}
 }

@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
 	"github.com/bugfreev587/k8s-cost-api-server/internal/api"
 	"github.com/bugfreev587/k8s-cost-api-server/internal/config"
 	"github.com/bugfreev587/k8s-cost-api-server/internal/db"
 	"github.com/bugfreev587/k8s-cost-api-server/internal/services"
-	// New import for interfaces
 )
 
 func main() {
@@ -104,8 +104,11 @@ func main() {
 
 	// services
 	apiKeySvc := services.NewAPIKeyService(postgresDB.GetPostgresDB(), []byte(cfg.Security.APIKeyPepper), rdb, time.Duration(cfg.Security.APIKeyCacheTTLSeconds)*time.Second)
+	// Get the pgxpool from timescaleDB for the plan service
+	timescalePool := timescaleDB.GetTimescalePool().(*pgxpool.Pool)
+	planSvc := services.NewPlanService(postgresDB.GetPostgresDB(), timescalePool)
 
-	apiServer := api.NewServer(cfg, postgresService, timescaleService, redisService, apiKeySvc)
+	apiServer := api.NewServer(cfg, postgresService, timescaleService, redisService, apiKeySvc, planSvc)
 	go func() {
 		if err := apiServer.Run(); err != nil {
 			log.Fatalf("server start err: %v", err)
