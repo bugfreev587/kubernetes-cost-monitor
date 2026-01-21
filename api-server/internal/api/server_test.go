@@ -49,6 +49,9 @@ func (m *mockTimescaleDB) Health(ctx context.Context) error { return m.healthErr
 func (m *mockTimescaleDB) InsertPodMetric(ctx context.Context, timeStamp time.Time, tenantID int64, cluster, namespace, pod, node string, cpuMilli, memBytes, cpuRequest, memRequest, cpuLimit, memLimit int64) error {
 	return nil
 }
+func (m *mockTimescaleDB) InsertPodMetricWithExtras(ctx context.Context, timeStamp time.Time, tenantID int64, cluster, namespace, pod, node string, cpuMilli, memBytes, cpuRequest, memRequest, cpuLimit, memLimit int64, labels map[string]string, phase, qosClass string, containers interface{}) error {
+	return nil
+}
 func (m *mockTimescaleDB) InsertNodeMetric(ctx context.Context, t time.Time, tenantID int64, cluster, node, instanceType string, cpuCap, memCap int64, hourlyCost float64) error {
 	return nil
 }

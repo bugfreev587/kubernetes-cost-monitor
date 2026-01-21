@@ -79,6 +79,13 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/v1/costs/utilization", costAuthMiddleware, s.getUtilizationVsRequests)
 	s.router.GET("/v1/costs/trends", costAuthMiddleware, s.getCostTrends)
 
+	// --- allocation (OpenCost-compatible API, protected with API Key Middleware) ---
+	allocAuthMiddleware := middleware.NewAPIKeyMiddleware(s.apiKeySvc)
+	s.router.GET("/v1/allocation", allocAuthMiddleware, s.getAllocation)
+	s.router.GET("/v1/allocation/compute", allocAuthMiddleware, s.getAllocationCompute)
+	s.router.GET("/v1/allocation/summary", allocAuthMiddleware, s.getAllocationSummary)
+	s.router.GET("/v1/allocation/summary/topline", allocAuthMiddleware, s.getAllocationTopline)
+
 	// --- recommendations (protected with API Key Middleware) ---
 	recAuthMiddleware := middleware.NewAPIKeyMiddleware(s.apiKeySvc)
 	s.router.GET("/v1/recommendations", recAuthMiddleware, s.getRecommendations)
