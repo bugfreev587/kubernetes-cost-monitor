@@ -1,9 +1,11 @@
 import { useUser } from '@clerk/clerk-react'
+import { useUserSync } from '../hooks/useUserSync'
 import Navbar from '../components/Navbar'
 import '../App.css'
 
 export default function ProfilePage() {
   const { user, isLoaded } = useUser()
+  const { userId, isSynced } = useUserSync()
 
   if (!isLoaded) {
     return (
@@ -41,7 +43,7 @@ export default function ProfilePage() {
               {user?.lastName && (
                 <p><strong>Last Name:</strong> {user.lastName}</p>
               )}
-              <p><strong>User ID:</strong> {user?.id}</p>
+              <p><strong>User ID:</strong> {isSynced ? userId : 'Loading...'}</p>
             </div>
           </div>
         </div>
