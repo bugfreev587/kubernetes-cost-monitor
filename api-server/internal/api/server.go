@@ -16,13 +16,14 @@ import (
 )
 
 type Server struct {
-	serverConfig *config.ServerCfg
-	postgresDB   app_interfaces.PostgresService
-	timescaleDB  app_interfaces.TimescaleService
-	redisClient  app_interfaces.RedisService
-	apiKeySvc    *services.APIKeyService
-	planSvc      *services.PlanService
-	router       *gin.Engine
+	serverConfig        *config.ServerCfg
+	postgresDB          app_interfaces.PostgresService
+	timescaleDB         app_interfaces.TimescaleService
+	redisClient         app_interfaces.RedisService
+	apiKeySvc           *services.APIKeyService
+	planSvc             *services.PlanService
+	clerkWebhookHandler *ClerkWebhookHandler
+	router              *gin.Engine
 }
 
 func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, timescaleDB app_interfaces.TimescaleService, redisClient app_interfaces.RedisService, apiKeySvc *services.APIKeyService, planSvc *services.PlanService) *Server {
@@ -31,14 +32,19 @@ func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, ti
 	}
 
 	router := gin.New()
+
+	// Initialize Clerk webhook handler (grafanaService is nil for now)
+	clerkWebhookHandler := NewClerkWebhookHandler(postgresDB.GetPostgresDB(), nil)
+
 	server := &Server{
-		serverConfig: &cfg.Server,
-		postgresDB:   postgresDB,
-		timescaleDB:  timescaleDB,
-		redisClient:  redisClient,
-		apiKeySvc:    apiKeySvc,
-		planSvc:      planSvc,
-		router:       router,
+		serverConfig:        &cfg.Server,
+		postgresDB:          postgresDB,
+		timescaleDB:         timescaleDB,
+		redisClient:         redisClient,
+		apiKeySvc:           apiKeySvc,
+		planSvc:             planSvc,
+		clerkWebhookHandler: clerkWebhookHandler,
+		router:              router,
 	}
 
 	server.setupMiddleware()
@@ -99,6 +105,12 @@ func (s *Server) setupRoutes() {
 	s.router.POST("/v1/recommendations/generate", recAuthMiddleware, s.generateRecommendations)
 	s.router.POST("/v1/recommendations/:id/apply", recAuthMiddleware, s.applyRecommendation)
 	s.router.POST("/v1/recommendations/:id/dismiss", recAuthMiddleware, s.dismissRecommendation)
+
+	// --- Clerk webhooks (for user signup/update/delete) ---
+	s.router.POST("/webhooks/clerk", s.clerkWebhookHandler.HandleWebhook)
+
+	// --- admin user metadata endpoint ---
+	s.router.POST("/v1/admin/users/metadata", s.clerkWebhookHandler.UpdateUserMetadata)
 }
 
 func (s *Server) Run() error {
