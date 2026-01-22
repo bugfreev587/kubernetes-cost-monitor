@@ -31,9 +31,16 @@ export function usePricingPlan(): PricingPlanStatus {
       return
     }
 
-    // TODO: Get tenant_id from user metadata once tenant assignment is implemented
-    // For now, using default tenant_id of 1
-    const tenantId = 1
+    // Get tenant_id from localStorage (set by useUserSync hook)
+    const storedTenantId = localStorage.getItem('tenant_id')
+    const tenantId = storedTenantId ? parseInt(storedTenantId, 10) : null
+
+    if (!tenantId) {
+      // User hasn't been synced yet, wait for sync
+      setIsLoading(false)
+      setHasPlan(false)
+      return
+    }
 
     const fetchPricingPlan = async () => {
       setIsLoading(true)

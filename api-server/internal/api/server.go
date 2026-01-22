@@ -111,6 +111,9 @@ func (s *Server) setupRoutes() {
 
 	// --- admin user metadata endpoint ---
 	s.router.POST("/v1/admin/users/metadata", s.clerkWebhookHandler.UpdateUserMetadata)
+
+	// --- auth endpoints (user sync from frontend) ---
+	s.router.POST("/v1/auth/sync", s.syncUserHandler())
 }
 
 func (s *Server) Run() error {

@@ -7,7 +7,25 @@ import DashboardRoute from './components/DashboardRoute'
 import ProfilePage from './pages/ProfilePage'
 import FeaturesPage from './pages/FeaturesPage'
 import PricingPage from './pages/PricingPage'
+import { useUserSync } from './hooks/useUserSync'
 import './App.css'
+
+// Component that syncs user with backend on sign in
+function UserSyncProvider({ children }: { children: React.ReactNode }) {
+  const { isSyncing, error } = useUserSync()
+
+  // Optionally show syncing state or error
+  if (error) {
+    console.warn('User sync error:', error)
+  }
+
+  if (isSyncing) {
+    // You can show a loading state here if needed
+    // For now, we just render children to avoid blocking
+  }
+
+  return <>{children}</>
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth()
@@ -77,8 +95,9 @@ function PublicHomeRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <UserSyncProvider>
+      <BrowserRouter>
+        <Routes>
         <Route
           path="/"
           element={
@@ -124,8 +143,9 @@ function App() {
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </UserSyncProvider>
   )
 }
 
