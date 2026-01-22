@@ -78,7 +78,7 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 
 		if err := db.Create(&tenant).Error; err != nil {
 			log.Printf("Failed to create tenant: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create tenant"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create tenant: %v", err)})
 			return
 		}
 
@@ -95,7 +95,7 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			log.Printf("Failed to create user: %v", err)
 			// Rollback tenant creation
 			db.Delete(&tenant)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create user: %v", err)})
 			return
 		}
 
