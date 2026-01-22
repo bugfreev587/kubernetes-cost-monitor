@@ -25,21 +25,20 @@ INSERT INTO pricing_plans (name, display_name, price_cents, cluster_limit, node_
   ('Premium', 'Premium', 4900, 10, 100, 10, 30, ARRAY['Up to 10 clusters', 'Up to 100 nodes', '30-day data retention', 'Advanced analytics', 'Cost optimization recommendations', 'Custom alerts']),
   ('Business', 'Business', 19900, -1, -1, -1, 365, ARRAY['Unlimited clusters', 'Unlimited nodes', '1 year data retention', 'Enterprise analytics', '24/7 support', 'Custom integrations', 'SLA guarantee']);
 
-CREATE TABLE IF NOT EXISTS tenants ( -- Changed id to BIGSERIAL for consistency
+CREATE TABLE IF NOT EXISTS tenants (
   id BIGSERIAL PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
   pricing_plan TEXT DEFAULT 'Starter',  -- References pricing_plans.name: 'Starter', 'Premium', 'Business'
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id BIGSERIAL PRIMARY KEY,
   tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  email TEXT NOT NULL,
-  password_hash TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  name TEXT,
   role TEXT NOT NULL DEFAULT 'viewer',  -- 'admin', 'editor', 'viewer'
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE(tenant_id, email)
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS api_keys (
@@ -83,13 +82,12 @@ INSERT INTO tenants (id, name, pricing_plan) VALUES
 -- ============================
 -- Test Data: Users
 -- ============================
--- password is 'password' for all users
 -- First user of each tenant is admin, others are viewers
-INSERT INTO users (tenant_id, email, password_hash, role) VALUES
-  (1, 'wile.coyote@acme.com', crypt('password', gen_salt('bf')), 'admin'),
-  (1, 'road.runner@acme.com', crypt('password', gen_salt('bf')), 'viewer'),
-  (2, 'hank.scorpio@globex.com', crypt('password', gen_salt('bf')), 'admin'),
-  (3, 'miles.dyson@skynet.com', crypt('password', gen_salt('bf')), 'admin');
+INSERT INTO users (tenant_id, email, name, role) VALUES
+  (1, 'wile.coyote@acme.com', 'Wile E. Coyote', 'admin'),
+  (1, 'road.runner@acme.com', 'Road Runner', 'viewer'),
+  (2, 'hank.scorpio@globex.com', 'Hank Scorpio', 'admin'),
+  (3, 'miles.dyson@skynet.com', 'Miles Dyson', 'admin');
 
 -- ============================
 -- Test Data: API Keys
