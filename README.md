@@ -38,7 +38,11 @@ A comprehensive solution for monitoring and analyzing Kubernetes cluster costs. 
 - **Resource Utilization**: Compare actual usage vs requested resources
 - **Right-Sizing Recommendations**: AI-generated suggestions to optimize resource allocation
 - **Multi-Cluster Support**: Monitor multiple Kubernetes clusters from a single dashboard
-- **Multi-Tenant**: API key-based tenant isolation
+- **Multi-Tenant**: API key-based tenant isolation with row-level security
+- **OpenCost-Compatible API**: Drop-in compatible allocation API for existing OpenCost integrations
+- **Pricing Plans**: Tiered plans (Starter, Premium, Business) with cluster/node/user limits
+- **Grafana Integration**: Multi-tenant Grafana with Clerk OAuth and automatic tenant isolation
+- **Enhanced Pod Metrics**: Labels, pod phase, QoS class, and per-container metrics
 
 ## Quick Start
 
@@ -101,6 +105,46 @@ A comprehensive solution for monitoring and analyzing Kubernetes cluster costs. 
 | `/v1/costs/trends` | GET | Cost trends over time |
 | `/v1/recommendations` | GET | Get optimization recommendations |
 | `/v1/recommendations/generate` | POST | Generate new recommendations |
+| `/v1/allocation` | GET | OpenCost-compatible allocation API |
+| `/v1/tenants/current` | GET | Get current tenant info and plan |
+
+### OpenCost-Compatible Allocation API
+
+The `/v1/allocation` endpoint provides OpenCost-compatible cost allocation queries:
+
+```bash
+# Cost by namespace for last 7 days
+curl "http://localhost:8080/v1/allocation?window=7d&aggregate=namespace" \
+  -H "X-API-Key: <keyid>:<secret>"
+
+# Cost by namespace and label, with idle cost distribution
+curl "http://localhost:8080/v1/allocation?window=24h&aggregate=namespace,label:app&idle=true&shareIdle=weighted"
+
+# Time-series data with daily buckets
+curl "http://localhost:8080/v1/allocation?window=30d&aggregate=cluster&step=1d&accumulate=false"
+
+# Filtered by namespace
+curl "http://localhost:8080/v1/allocation?window=7d&aggregate=pod&filter=namespace:production"
+```
+
+Query parameters:
+- `window`: Time window (required) - `24h`, `7d`, `today`, `lastweek`, or date range `2024-01-01,2024-01-07`
+- `aggregate`: Grouping - `namespace`, `cluster`, `node`, `pod`, `controller`, `label:<key>`
+- `step`: Time bucket size - `1h`, `1d`, `1w`
+- `accumulate`: Result accumulation - `true`, `false`, `hour`, `day`, `week`
+- `idle`: Include idle costs - `true` or `false`
+- `shareIdle`: Distribute idle costs - `true`, `false`, `weighted`
+- `filter`: Filter expressions - `namespace:value`, `cluster:value`, `label:key=value`
+
+## Pricing Plans
+
+| Plan | Price | Clusters | Nodes | Users | Retention |
+|------|-------|----------|-------|-------|-----------|
+| **Starter** | Free | 1 | 5 | 1 | 7 days |
+| **Premium** | $49/mo | 5 | 50 | 10 | 30 days |
+| **Business** | $199/mo | Unlimited | Unlimited | Unlimited | 90 days |
+
+Plan limits are enforced at the API level during metrics ingestion.
 
 ## Configuration
 
@@ -117,6 +161,8 @@ Environment variables (prefix `AGENT_`):
 - `AGENT_API_KEY` - Authentication key (`keyid:secret`)
 - `AGENT_CLUSTER_NAME` - Cluster identifier
 - `AGENT_COLLECT_INTERVAL` - Collection interval in seconds (default: 600)
+- `AGENT_COLLECT_LABELS` - Collect pod labels (default: true)
+- `AGENT_COLLECT_CONTAINERS` - Collect per-container metrics (default: true)
 
 ### Frontend
 
@@ -130,6 +176,39 @@ Environment variables:
 | api-server | Railway | Root directory: `api-server` |
 | auth-service-frontend | Vercel | Root directory: `auth-service-frontend` |
 | cost-agent | Kubernetes | Via Helm or kubectl |
+| grafana | Railway | With Clerk OAuth |
+
+### Helm Deployment
+
+Deploy the cost-agent using the Helm chart:
+
+```bash
+# Add values
+helm install cost-agent ./helm/cost-agent \
+  --set config.serverUrl=https://your-api.railway.app \
+  --set config.apiKey=<keyid>:<secret> \
+  --set config.clusterName=my-cluster
+
+# Or use a values file
+helm install cost-agent ./helm/cost-agent -f values.yaml
+```
+
+### Grafana Multi-Tenant Setup
+
+The API server integrates with Grafana for visualization with automatic tenant isolation:
+
+1. Deploy Grafana on Railway with Clerk OAuth
+2. Configure row-level security in TimescaleDB
+3. Users logging in via Clerk are automatically assigned to their tenant's Grafana organization
+
+See `docs/GRAFANA_SETUP_QUICKSTART.md` for detailed setup instructions.
+
+## Documentation
+
+Additional documentation in the `docs/` directory:
+- `GRAFANA_SETUP_QUICKSTART.md` - Grafana multi-tenant setup guide
+- `DEPLOYMENT_QUICKSTART.md` - Quick deployment guide
+- `multi-tenant-setup-guide.md` - Complete multi-tenant architecture
 
 ## License
 
