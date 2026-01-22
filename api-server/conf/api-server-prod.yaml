@@ -5,7 +5,9 @@ server:
   port: 8080
   read_timeout_seconds: 15
   write_timeout_seconds: 15
-  cors_origins: []  # Configure CORS origins for production
+  cors_origins:
+    - "https://my-k8s-cost-monitor.dedyn.io"
+    - "https://kubernetes-cost-monitor.vercel.app"
   rate_limit_per_minute: 100
 
 postgres:
