@@ -4,7 +4,10 @@
 -- 1. Add name column to users if it doesn't exist
 ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;
 
--- 2. Drop password_hash column if it exists (we use Clerk for auth now)
+-- 2. Add role column if it doesn't exist
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'viewer';
+
+-- 3. Drop password_hash column if it exists (we use Clerk for auth now)
 ALTER TABLE users DROP COLUMN IF EXISTS password_hash;
 
 -- 3. Remove UNIQUE constraint on tenants.name if it exists
