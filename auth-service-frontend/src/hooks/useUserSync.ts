@@ -8,7 +8,7 @@ interface UserSyncState {
   isSyncing: boolean
   error: string | null
   tenantId: number | null
-  userId: number | null
+  userId: string | null  // Clerk user ID (e.g., 'user_xxx')
   pricingPlan: string | null
 }
 

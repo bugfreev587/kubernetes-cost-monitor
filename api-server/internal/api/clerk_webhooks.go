@@ -70,6 +70,13 @@ func (h *ClerkWebhookHandler) HandleWebhook(c *gin.Context) {
 func (h *ClerkWebhookHandler) handleUserCreated(c *gin.Context, data map[string]interface{}) {
 	ctx := c.Request.Context()
 
+	// Parse Clerk user ID
+	clerkUserID, ok := data["id"].(string)
+	if !ok || clerkUserID == "" {
+		log.Printf("No user ID in user.created webhook")
+		return
+	}
+
 	// Parse email
 	emailAddresses, ok := data["email_addresses"].([]interface{})
 	if !ok || len(emailAddresses) == 0 {
@@ -120,8 +127,9 @@ func (h *ClerkWebhookHandler) handleUserCreated(c *gin.Context, data map[string]
 		role = "admin" // First user becomes admin
 	}
 
-	// Create user in database
+	// Create user in database with Clerk ID as primary key
 	user := models.User{
+		ID:        clerkUserID, // Use Clerk ID as primary key
 		TenantID:  tenantID,
 		Email:     email,
 		Name:      name,
@@ -141,33 +149,34 @@ func (h *ClerkWebhookHandler) handleUserCreated(c *gin.Context, data map[string]
 		}
 	}
 
-	log.Printf("User created: email=%s, tenant_id=%d", email, tenantID)
+	log.Printf("User created: id=%s, email=%s, tenant_id=%d", clerkUserID, email, tenantID)
 }
 
 func (h *ClerkWebhookHandler) handleUserUpdated(c *gin.Context, data map[string]interface{}) {
 	ctx := c.Request.Context()
 
-	// Parse email
-	emailAddresses, ok := data["email_addresses"].([]interface{})
-	if !ok || len(emailAddresses) == 0 {
+	// Parse Clerk user ID
+	clerkUserID, ok := data["id"].(string)
+	if !ok || clerkUserID == "" {
+		log.Printf("No user ID in user.updated webhook")
 		return
 	}
 
-	emailData, ok := emailAddresses[0].(map[string]interface{})
-	if !ok {
-		return
-	}
-
-	email, ok := emailData["email_address"].(string)
-	if !ok || email == "" {
-		return
-	}
-
-	// Find user
+	// Find user by Clerk ID (primary key)
 	var user models.User
-	if err := h.db.Where("email = ?", email).First(&user).Error; err != nil {
-		log.Printf("User not found for update: %s", email)
+	if err := h.db.Where("id = ?", clerkUserID).First(&user).Error; err != nil {
+		log.Printf("User not found for update: clerk_id=%s", clerkUserID)
 		return
+	}
+
+	// Parse email and update if changed
+	emailAddresses, ok := data["email_addresses"].([]interface{})
+	if ok && len(emailAddresses) > 0 {
+		if emailData, ok := emailAddresses[0].(map[string]interface{}); ok {
+			if email, ok := emailData["email_address"].(string); ok && email != "" && email != user.Email {
+				user.Email = email
+			}
+		}
 	}
 
 	// Update name if changed
@@ -177,7 +186,6 @@ func (h *ClerkWebhookHandler) handleUserUpdated(c *gin.Context, data map[string]
 
 	if newName != user.Name {
 		user.Name = newName
-		h.db.Save(&user)
 	}
 
 	// Check if tenant_id changed in metadata
@@ -187,7 +195,6 @@ func (h *ClerkWebhookHandler) handleUserUpdated(c *gin.Context, data map[string]
 	if newTenantID != 0 && newTenantID != user.TenantID {
 		// Tenant changed - update user and sync Grafana
 		user.TenantID = newTenantID
-		h.db.Save(&user)
 
 		if h.grafanaService != nil {
 			if err := h.syncGrafanaOrg(ctx, newTenantID); err != nil {
@@ -195,23 +202,31 @@ func (h *ClerkWebhookHandler) handleUserUpdated(c *gin.Context, data map[string]
 			}
 		}
 
-		log.Printf("User tenant updated: email=%s, new_tenant_id=%d", email, newTenantID)
+		log.Printf("User tenant updated: id=%s, new_tenant_id=%d", clerkUserID, newTenantID)
 	}
+
+	h.db.Save(&user)
 }
 
 func (h *ClerkWebhookHandler) handleUserDeleted(c *gin.Context, data map[string]interface{}) {
-	// Parse user ID
-	userID, ok := data["id"].(string)
-	if !ok || userID == "" {
+	// Parse Clerk user ID
+	clerkUserID, ok := data["id"].(string)
+	if !ok || clerkUserID == "" {
 		return
 	}
 
-	// For now, we'll soft-delete or mark as inactive
-	// In production, you might want to keep the user for audit purposes
-	log.Printf("User deleted webhook received: clerk_user_id=%s", userID)
+	// Delete user by Clerk ID (primary key)
+	result := h.db.Where("id = ?", clerkUserID).Delete(&models.User{})
+	if result.Error != nil {
+		log.Printf("Failed to delete user: clerk_id=%s, error=%v", clerkUserID, result.Error)
+		return
+	}
 
-	// Note: You'd need to store clerk_user_id in your User model to delete by it
-	// For now, this is a placeholder
+	if result.RowsAffected > 0 {
+		log.Printf("User deleted: clerk_id=%s", clerkUserID)
+	} else {
+		log.Printf("User not found for deletion: clerk_id=%s", clerkUserID)
+	}
 }
 
 // Helper functions
@@ -284,7 +299,8 @@ func (h *ClerkWebhookHandler) syncGrafanaOrg(ctx context.Context, tenantID uint)
 // This would be called from your frontend after user signup
 func (h *ClerkWebhookHandler) UpdateUserMetadata(c *gin.Context) {
 	var req struct {
-		Email    string   `json:"email" binding:"required"`
+		UserID   string   `json:"user_id"`                          // Clerk user ID (preferred)
+		Email    string   `json:"email"`                            // Fallback lookup by email
 		TenantID uint     `json:"tenant_id" binding:"required"`
 		Roles    []string `json:"roles"`
 	}
@@ -294,9 +310,20 @@ func (h *ClerkWebhookHandler) UpdateUserMetadata(c *gin.Context) {
 		return
 	}
 
-	// Find user
+	if req.UserID == "" && req.Email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id or email required"})
+		return
+	}
+
+	// Find user by Clerk ID or email
 	var user models.User
-	if err := h.db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+	var err error
+	if req.UserID != "" {
+		err = h.db.Where("id = ?", req.UserID).First(&user).Error
+	} else {
+		err = h.db.Where("email = ?", req.Email).First(&user).Error
+	}
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS tenants (
 );
 
 CREATE TABLE IF NOT EXISTS users (
-  id BIGSERIAL PRIMARY KEY,
+  id TEXT PRIMARY KEY,  -- Clerk user ID (e.g., 'user_2lLjFe4cXYZ...')
   tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   email TEXT NOT NULL UNIQUE,
   name TEXT,
@@ -83,11 +83,12 @@ INSERT INTO tenants (id, name, pricing_plan) VALUES
 -- Test Data: Users
 -- ============================
 -- First user of each tenant is admin, others are viewers
-INSERT INTO users (tenant_id, email, name, role) VALUES
-  (1, 'wile.coyote@acme.com', 'Wile E. Coyote', 'admin'),
-  (1, 'road.runner@acme.com', 'Road Runner', 'viewer'),
-  (2, 'hank.scorpio@globex.com', 'Hank Scorpio', 'admin'),
-  (3, 'miles.dyson@skynet.com', 'Miles Dyson', 'admin');
+-- id is the Clerk user ID (using test IDs here)
+INSERT INTO users (id, tenant_id, email, name, role) VALUES
+  ('user_test_wile_coyote', 1, 'wile.coyote@acme.com', 'Wile E. Coyote', 'admin'),
+  ('user_test_road_runner', 1, 'road.runner@acme.com', 'Road Runner', 'viewer'),
+  ('user_test_hank_scorpio', 2, 'hank.scorpio@globex.com', 'Hank Scorpio', 'admin'),
+  ('user_test_miles_dyson', 3, 'miles.dyson@skynet.com', 'Miles Dyson', 'admin');
 
 -- ============================
 -- Test Data: API Keys

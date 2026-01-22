@@ -42,9 +42,9 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 
 		db := s.postgresDB.GetPostgresDB()
 
-		// Check if user already exists by email
+		// Check if user already exists by Clerk ID (primary key)
 		var existingUser models.User
-		result := db.Where("email = ?", req.Email).First(&existingUser)
+		result := db.Where("id = ?", req.ClerkUserID).First(&existingUser)
 
 		if result.Error == nil {
 			// User exists, return their info
@@ -82,8 +82,9 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			return
 		}
 
-		// Create user (first user is admin)
+		// Create user with Clerk ID as the primary key (first user is admin)
 		user := models.User{
+			ID:        req.ClerkUserID, // Use Clerk ID as primary key
 			TenantID:  tenant.ID,
 			Email:     req.Email,
 			Name:      name,
@@ -99,7 +100,7 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			return
 		}
 
-		log.Printf("Created new user: email=%s, tenant_id=%d, user_id=%d", req.Email, tenant.ID, user.ID)
+		log.Printf("Created new user: email=%s, tenant_id=%d, user_id=%s", req.Email, tenant.ID, user.ID)
 
 		c.JSON(http.StatusCreated, SyncUserResponse{
 			UserID:      user.ID,
