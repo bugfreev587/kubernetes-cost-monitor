@@ -20,7 +20,7 @@ type SyncUserRequest struct {
 
 // SyncUserResponse represents the response for user sync
 type SyncUserResponse struct {
-	UserID      uint   `json:"user_id"`
+	UserID      string `json:"user_id"`
 	TenantID    uint   `json:"tenant_id"`
 	Email       string `json:"email"`
 	Name        string `json:"name"`

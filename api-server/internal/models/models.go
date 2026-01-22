@@ -28,7 +28,7 @@ type Tenant struct {
 }
 
 type User struct {
-	ID        uint   `gorm:"primaryKey"`
+	ID        string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	TenantID  uint
 	Email     string `gorm:"uniqueIndex"`
 	Name      string
