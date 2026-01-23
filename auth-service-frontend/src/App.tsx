@@ -8,6 +8,7 @@ import DashboardRoute from './components/DashboardRoute'
 import ProfilePage from './pages/ProfilePage'
 import FeaturesPage from './pages/FeaturesPage'
 import PricingPage from './pages/PricingPage'
+import ManagementPage from './pages/ManagementPage'
 import APIKeyModal from './components/APIKeyModal'
 import { useUserSync } from './hooks/useUserSync'
 import './App.css'
@@ -163,6 +164,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/management"
+          element={
+            <ProtectedRoute>
+              <ManagementPage />
             </ProtectedRoute>
           }
         />

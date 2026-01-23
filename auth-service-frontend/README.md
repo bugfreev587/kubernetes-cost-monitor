@@ -10,6 +10,9 @@ A modern React application for user authentication and management, built with Cl
 - 🧭 **Navigation** - Responsive navbar with Features, Pricing, and user menu
 - 🔒 **Protected Routes** - Automatic redirects based on authentication state
 - 📱 **Responsive Design** - Mobile-friendly UI that works on all devices
+- 👥 **Team Management** - Admin panel for managing team members and roles
+- 🔑 **API Key Management** - Create, view, and revoke API keys
+- 🛡️ **Role-Based Access Control** - Four-tier permission system (owner, admin, editor, viewer)
 
 ## Tech Stack
 
@@ -58,14 +61,20 @@ The application will be available at `http://localhost:5173`
 auth-service-frontend/
 ├── src/
 │   ├── components/
-│   │   └── Navbar.tsx          # Navigation bar component
+│   │   ├── Navbar.tsx          # Navigation bar component
+│   │   └── APIKeyModal.tsx     # Modal for displaying new API keys
+│   ├── hooks/
+│   │   └── useUserSync.ts      # User sync hook with role management
 │   ├── pages/
 │   │   ├── HomePage.tsx        # Landing page
 │   │   ├── SignInPage.tsx      # Sign in page
 │   │   ├── SignUpPage.tsx      # Sign up page
 │   │   ├── Dashboard.tsx       # Protected dashboard
-│   │   ├── FeaturesPage.tsx   # Features page
-│   │   └── PricingPage.tsx     # Pricing page
+│   │   ├── FeaturesPage.tsx    # Features page
+│   │   ├── PricingPage.tsx     # Pricing page
+│   │   ├── ProfilePage.tsx     # User profile page
+│   │   ├── ManagementPage.tsx  # Team & API key management (admin/owner)
+│   │   └── ManagementPage.css  # Management page styles
 │   ├── App.tsx                 # Main app component with routing
 │   ├── App.css                 # Application styles
 │   ├── index.css               # Global styles
@@ -83,12 +92,15 @@ auth-service-frontend/
 - `/dashboard` - Protected dashboard (requires authentication)
 - `/features` - Features page
 - `/pricing` - Pricing page
+- `/profile` - User profile page (requires authentication)
+- `/management` - Team & API key management (requires authentication + admin/owner role)
 
 ## Environment Variables
 
-Create a `.env` file with the following variable:
+Create a `.env` file with the following variables:
 
 - `VITE_CLERK_PUBLISHABLE_KEY` - Your Clerk publishable key
+- `VITE_API_SERVER_URL` - API server URL (defaults to `http://localhost:8080`)
 
 **Note:** The `.env` file is already added to `.gitignore` to keep your keys secure.
 
@@ -125,6 +137,62 @@ The `vercel.json` file automatically handles client-side routing, preventing 404
    - Automatically redirected from homepage to dashboard
    - Can access all pages including protected dashboard
    - User menu in navbar shows profile with Dashboard link and Sign Out option
+
+## Role-Based Access Control (RBAC)
+
+The application implements a four-tier role hierarchy with the following permissions:
+
+### Role Hierarchy
+
+```
+owner > admin > editor > viewer
+```
+
+Each role inherits all permissions from roles below it.
+
+### Role Permissions
+
+| Feature | Viewer | Editor | Admin | Owner |
+|---------|--------|--------|-------|-------|
+| View dashboard | ✓ | ✓ | ✓ | ✓ |
+| View team members | | | ✓ | ✓ |
+| Invite users | | | ✓ | ✓ |
+| Suspend/unsuspend users | | | ✓ | ✓ |
+| Remove users | | | ✓ | ✓ |
+| View API keys | | | ✓ | ✓ |
+| Create API keys | | | ✓ | ✓ |
+| Revoke API keys | | | ✓ | ✓ |
+| Promote viewer → editor | | | ✓ | ✓ |
+| Promote editor → admin | | | | ✓ |
+| Demote admin → editor | | | | ✓ |
+| Remove admins | | | | ✓ |
+| Change pricing plan | | | | ✓ |
+| Transfer ownership | | | | ✓ |
+| Delete tenant | | | | ✓ |
+
+### Management Page
+
+The Management page (`/management`) is accessible only to users with admin or owner roles. It provides:
+
+1. **Team Members Section** (Admin+)
+   - View all team members with their roles and status
+   - Invite new users by email
+   - Suspend or unsuspend users
+   - Remove users from the tenant
+   - Promote/demote users (within permission limits)
+
+2. **API Keys Section** (Admin+)
+   - View all API keys with masked values
+   - Create new API keys with custom names
+   - Revoke existing API keys
+
+3. **Billing Section** (Owner only)
+   - View current pricing plan
+   - Change to a different pricing plan
+
+4. **Danger Zone Section** (Owner only)
+   - Transfer ownership to another admin
+   - Delete the entire tenant (irreversible)
 
 ## Styling
 

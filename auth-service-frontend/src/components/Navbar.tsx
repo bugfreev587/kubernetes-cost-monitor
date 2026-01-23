@@ -1,13 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useUser, useAuth, SignOutButton } from '@clerk/clerk-react'
+import { useUserSync, hasPermission } from '../hooks/useUserSync'
 import '../App.css'
 
 export default function Navbar() {
   const { user, isLoaded: userLoaded } = useUser()
   const { isLoaded: authLoaded, isSignedIn } = useAuth()
+  const { role, isSynced } = useUserSync()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  // Check if user has admin or owner role
+  const canAccessManagement = isSynced && hasPermission(role, 'admin')
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -91,6 +96,15 @@ export default function Navbar() {
                   >
                     Profile
                   </Link>
+                  {canAccessManagement && (
+                    <Link
+                      to="/management"
+                      className="user-menu-item"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      Management
+                    </Link>
+                  )}
                   <div className="user-menu-divider"></div>
                   <SignOutButton>
                     <button className="user-menu-item user-menu-signout">
