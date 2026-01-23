@@ -1,0 +1,157 @@
+/* Auto Sign-Out Warning Modal Styles */
+
+.auto-signout-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.auto-signout-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 450px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.auto-signout-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.auto-signout-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.auto-signout-body {
+  padding: 2rem 1.5rem;
+  text-align: center;
+}
+
+.auto-signout-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.auto-signout-message {
+  font-size: 1.1rem;
+  color: #374151;
+  margin: 1rem 0;
+  line-height: 1.6;
+}
+
+.auto-signout-message strong {
+  color: #f59e0b;
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-family: 'Monaco', 'Menlo', monospace;
+  background: #fef3c7;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  display: inline-block;
+  margin: 0 0.25rem;
+}
+
+.auto-signout-submessage {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin-top: 1rem;
+}
+
+.auto-signout-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  background: #f9fafb;
+}
+
+.auto-signout-btn {
+  min-width: 120px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.auto-signout-btn.btn-primary {
+  background: #646cff;
+  color: white;
+}
+
+.auto-signout-btn.btn-primary:hover {
+  background: #535bf2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(100, 108, 255, 0.3);
+}
+
+.auto-signout-btn.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.auto-signout-btn.btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .auto-signout-modal {
+    width: 95%;
+    max-width: none;
+  }
+
+  .auto-signout-footer {
+    flex-direction: column;
+  }
+
+  .auto-signout-btn {
+    width: 100%;
+  }
+}

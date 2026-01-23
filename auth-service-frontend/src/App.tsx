@@ -10,7 +10,9 @@ import FeaturesPage from './pages/FeaturesPage'
 import PricingPage from './pages/PricingPage'
 import ManagementPage from './pages/ManagementPage'
 import APIKeyModal from './components/APIKeyModal'
+import AutoSignOutWarning from './components/AutoSignOutWarning'
 import { useUserSync } from './hooks/useUserSync'
+import { useAutoSignOut } from './hooks/useAutoSignOut'
 import './App.css'
 
 // Component that syncs user with backend on sign in
@@ -47,6 +49,25 @@ function UserSyncProvider({ children }: { children: React.ReactNode }) {
       {children}
       {showAPIKeyModal && displayedAPIKey && (
         <APIKeyModal apiKey={displayedAPIKey} onClose={handleCloseModal} />
+      )}
+    </>
+  )
+}
+
+// Component that handles auto sign-out for signed-in users
+function AutoSignOutProvider({ children }: { children: React.ReactNode }) {
+  const { isSignedIn } = useAuth()
+  const { showWarning, timeRemaining, handleContinue, handleSignOut } = useAutoSignOut()
+
+  return (
+    <>
+      {children}
+      {isSignedIn && showWarning && (
+        <AutoSignOutWarning
+          timeRemaining={timeRemaining}
+          onContinue={handleContinue}
+          onSignOut={handleSignOut}
+        />
       )}
     </>
   )
@@ -121,63 +142,65 @@ function PublicHomeRoute({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <UserSyncProvider>
-      <BrowserRouter>
-        <Routes>
-        <Route
-          path="/"
-          element={
-            <PublicHomeRoute>
-              <HomePage />
-            </PublicHomeRoute>
-          }
-        />
-        <Route
-          path="/features"
-          element={<FeaturesPage />}
-        />
-        <Route
-          path="/pricing"
-          element={<PricingPage />}
-        />
-        <Route
-          path="/sign-in"
-          element={
-            <PublicRoute>
-              <SignInPage />
-            </PublicRoute>
-          }
-        />
-        <Route
-          path="/sign-up"
-          element={
-            <PublicRoute>
-              <SignUpPage />
-            </PublicRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={<DashboardRoute />}
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/management"
-          element={
-            <ProtectedRoute>
-              <ManagementPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <AutoSignOutProvider>
+        <BrowserRouter>
+          <Routes>
+          <Route
+            path="/"
+            element={
+              <PublicHomeRoute>
+                <HomePage />
+              </PublicHomeRoute>
+            }
+          />
+          <Route
+            path="/features"
+            element={<FeaturesPage />}
+          />
+          <Route
+            path="/pricing"
+            element={<PricingPage />}
+          />
+          <Route
+            path="/sign-in"
+            element={
+              <PublicRoute>
+                <SignInPage />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/sign-up"
+            element={
+              <PublicRoute>
+                <SignUpPage />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={<DashboardRoute />}
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/management"
+            element={
+              <ProtectedRoute>
+                <ManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AutoSignOutProvider>
     </UserSyncProvider>
   )
 }
