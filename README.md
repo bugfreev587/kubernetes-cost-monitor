@@ -43,6 +43,47 @@ A comprehensive solution for monitoring and analyzing Kubernetes cluster costs. 
 - **Pricing Plans**: Tiered plans (Starter, Premium, Business) with cluster/node/user limits
 - **Grafana Integration**: Multi-tenant Grafana with Clerk OAuth and automatic tenant isolation
 - **Enhanced Pod Metrics**: Labels, pod phase, QoS class, and per-container metrics
+- **Role-Based Access Control**: Owner/Admin/Editor/Viewer roles with granular permissions
+
+## User Roles & Permissions
+
+The system implements a hierarchical role-based access control (RBAC) system:
+
+### Role Hierarchy
+
+| Role | Description |
+|------|-------------|
+| **Owner** | Tenant creator with full control. Cannot be removed. Can manage billing, admins, and delete tenant. |
+| **Admin** | Can manage team members (editors/viewers), API keys, and invite users. Cannot manage other admins. |
+| **Editor** | Can modify data including apply/dismiss recommendations. Has read + write access. |
+| **Viewer** | Read-only access to dashboard, costs, and recommendations. |
+
+### Permissions Matrix
+
+| Permission | Viewer | Editor | Admin | Owner |
+|------------|:------:|:------:|:-----:|:-----:|
+| View dashboard & costs | Y | Y | Y | Y |
+| View recommendations | Y | Y | Y | Y |
+| View/edit own profile | Y | Y | Y | Y |
+| Generate recommendations | | Y | Y | Y |
+| Apply/dismiss recommendations | | Y | Y | Y |
+| View team members | | | Y | Y |
+| Invite users | | | Y | Y |
+| Suspend/remove users | | | Y | Y |
+| Manage API keys | | | Y | Y |
+| Promote to editor | | | Y | Y |
+| Promote to admin | | | | Y |
+| Remove admins | | | | Y |
+| Change pricing plan | | | | Y |
+| Transfer ownership | | | | Y |
+| Delete tenant | | | | Y |
+
+### User Status
+
+Users can have the following status:
+- **active**: Normal access based on role
+- **suspended**: Account temporarily disabled, cannot log in
+- **pending**: Invited but not yet signed up
 
 ## Quick Start
 
@@ -94,19 +135,64 @@ A comprehensive solution for monitoring and analyzing Kubernetes cluster costs. 
 
 ## API Endpoints
 
+### Public Endpoints (No Authentication)
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/v1/health` | GET | Health check |
-| `/v1/admin/api_keys` | POST | Create API key |
-| `/v1/ingest` | POST | Ingest metrics from agents |
+| `/v1/plans` | GET | List available pricing plans |
+| `/v1/auth/sync` | POST | Sync user after Clerk authentication |
+
+### Agent Endpoints (API Key Required)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/ingest` | POST | Ingest metrics from cost-agent |
+
+### Viewer+ Endpoints (Authenticated Users)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
 | `/v1/costs/namespaces` | GET | Cost breakdown by namespace |
 | `/v1/costs/clusters` | GET | Cost breakdown by cluster |
 | `/v1/costs/utilization` | GET | Resource utilization vs requests |
 | `/v1/costs/trends` | GET | Cost trends over time |
 | `/v1/recommendations` | GET | Get optimization recommendations |
-| `/v1/recommendations/generate` | POST | Generate new recommendations |
 | `/v1/allocation` | GET | OpenCost-compatible allocation API |
-| `/v1/tenants/current` | GET | Get current tenant info and plan |
+| `/v1/users` | GET | List team members |
+
+### Editor+ Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/recommendations/generate` | POST | Generate new recommendations |
+| `/v1/recommendations/:id/apply` | POST | Apply a recommendation |
+| `/v1/recommendations/:id/dismiss` | POST | Dismiss a recommendation |
+
+### Admin+ Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/admin/api_keys` | GET | List API keys (masked) |
+| `/v1/admin/api_keys` | POST | Create new API key |
+| `/v1/admin/api_keys/:key_id` | DELETE | Revoke an API key |
+| `/v1/admin/users/invite` | POST | Invite a new user |
+| `/v1/admin/users/:user_id/suspend` | PATCH | Suspend a user |
+| `/v1/admin/users/:user_id/unsuspend` | PATCH | Unsuspend a user |
+| `/v1/admin/users/:user_id/role` | PATCH | Update user role (viewer/editor) |
+| `/v1/admin/users/:user_id` | DELETE | Remove a user |
+| `/v1/admin/tenants/:tenant_id/pricing-plan` | GET | Get tenant's pricing plan |
+| `/v1/admin/tenants/:tenant_id/usage` | GET | Get tenant usage stats |
+
+### Owner-Only Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1/owner/tenants/:tenant_id/pricing-plan` | PATCH | Change pricing plan |
+| `/v1/owner/users/:user_id/promote-admin` | POST | Promote user to admin |
+| `/v1/owner/users/:user_id/demote-admin` | DELETE | Demote admin to editor |
+| `/v1/owner/transfer-ownership` | POST | Transfer tenant ownership |
+| `/v1/owner/tenants/:tenant_id` | DELETE | Delete tenant and all data |
 
 ### OpenCost-Compatible Allocation API
 
