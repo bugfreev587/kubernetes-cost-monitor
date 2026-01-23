@@ -69,7 +69,13 @@ export default function ManagementPage() {
       })
       if (response.ok) {
         const data = await response.json()
-        setUsers(data.users || [])
+        console.log('Fetched users data:', data)
+        const usersList = data.users || []
+        console.log('Users list:', usersList)
+        setUsers(usersList)
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Failed to fetch users:', response.status, errorData)
       }
     } catch (err) {
       console.error('Failed to fetch users:', err)
@@ -446,10 +452,21 @@ export default function ManagementPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id} className={user.id === userId ? 'current-user' : ''}>
-                      <td>{user.name || '-'}</td>
-                      <td>{user.email}</td>
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="empty-state">
+                        No users found.
+                      </td>
+                    </tr>
+                  ) : (
+                    users.map((user) => {
+                      // Ensure we have valid data
+                      const displayName = user.name?.trim() || user.email?.split('@')[0] || 'Unknown'
+                      const displayEmail = user.email?.trim() || 'No email'
+                      return (
+                      <tr key={user.id} className={user.id === userId ? 'current-user' : ''}>
+                        <td>{displayName}</td>
+                        <td>{displayEmail}</td>
                       <td>
                         <span className={`role-badge role-badge-${user.role}`}>
                           {user.role}
@@ -537,7 +554,9 @@ export default function ManagementPage() {
                         {user.id === userId && <span className="you-badge">You</span>}
                       </td>
                     </tr>
-                  ))}
+                      )
+                    })
+                  )}
                 </tbody>
               </table>
             </div>

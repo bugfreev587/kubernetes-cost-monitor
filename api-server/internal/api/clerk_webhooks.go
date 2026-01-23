@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -99,7 +100,11 @@ func (h *ClerkWebhookHandler) handleUserCreated(c *gin.Context, data map[string]
 	// Parse name
 	firstName, _ := data["first_name"].(string)
 	lastName, _ := data["last_name"].(string)
-	name := fmt.Sprintf("%s %s", firstName, lastName)
+	name := strings.TrimSpace(fmt.Sprintf("%s %s", firstName, lastName))
+	if name == "" {
+		// Fallback to email if no name provided
+		name = email
+	}
 
 	// Parse public metadata
 	publicMetadata, _ := data["public_metadata"].(map[string]interface{})
@@ -300,8 +305,8 @@ func (h *ClerkWebhookHandler) syncGrafanaOrg(ctx context.Context, tenantID uint)
 // This would be called from your frontend after user signup
 func (h *ClerkWebhookHandler) UpdateUserMetadata(c *gin.Context) {
 	var req struct {
-		UserID   string   `json:"user_id"`                          // Clerk user ID (preferred)
-		Email    string   `json:"email"`                            // Fallback lookup by email
+		UserID   string   `json:"user_id"` // Clerk user ID (preferred)
+		Email    string   `json:"email"`   // Fallback lookup by email
 		TenantID uint     `json:"tenant_id" binding:"required"`
 		Roles    []string `json:"roles"`
 	}
