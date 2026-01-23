@@ -75,12 +75,56 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			return
 		}
 
-		// User doesn't exist, create new tenant and user
+		// User doesn't exist by Clerk ID - check for pending invitation by email
+		var pendingUser models.User
+		pendingResult := db.Where("email = ? AND status = ?", req.Email, models.StatusPending).First(&pendingUser)
+
 		name := fmt.Sprintf("%s %s", req.FirstName, req.LastName)
 		if name == " " {
 			name = req.Email
 		}
 
+		if pendingResult.Error == nil {
+			// Found pending invitation - update the user record with Clerk ID and activate
+			oldID := pendingUser.ID
+			pendingUser.ID = req.ClerkUserID
+			pendingUser.Name = name
+			pendingUser.Status = models.StatusActive
+
+			// Delete old pending record and create new one with Clerk ID
+			if err := db.Delete(&models.User{}, "id = ?", oldID).Error; err != nil {
+				log.Printf("Failed to delete pending user: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to activate invited user"})
+				return
+			}
+
+			if err := db.Create(&pendingUser).Error; err != nil {
+				log.Printf("Failed to create activated user: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to activate invited user"})
+				return
+			}
+
+			log.Printf("Activated invited user: email=%s, tenant_id=%d, user_id=%s, role=%s",
+				pendingUser.Email, pendingUser.TenantID, pendingUser.ID, pendingUser.Role)
+
+			// Get tenant info
+			var tenant models.Tenant
+			db.First(&tenant, pendingUser.TenantID)
+
+			c.JSON(http.StatusOK, SyncUserResponse{
+				UserID:      pendingUser.ID,
+				TenantID:    pendingUser.TenantID,
+				Email:       pendingUser.Email,
+				Name:        pendingUser.Name,
+				Role:        pendingUser.Role,
+				Status:      pendingUser.Status,
+				PricingPlan: tenant.PricingPlan,
+				IsNewUser:   true, // Treat as new user for welcome experience
+			})
+			return
+		}
+
+		// No pending invitation - create new tenant and user
 		// Create tenant
 		tenant := models.Tenant{
 			Name:        name,
