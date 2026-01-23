@@ -70,8 +70,19 @@ export default function ManagementPage() {
       if (response.ok) {
         const data = await response.json()
         console.log('Fetched users data:', data)
-        const usersList = data.users || []
+        
+        // Handle different possible response structures
+        let usersList = []
+        if (Array.isArray(data)) {
+          usersList = data
+        } else if (data.users && Array.isArray(data.users)) {
+          usersList = data.users
+        } else if (data.Users && Array.isArray(data.Users)) {
+          usersList = data.Users
+        }
+        
         console.log('Users list:', usersList)
+        console.log('First user sample:', usersList[0])
         setUsers(usersList)
       } else {
         const errorData = await response.json().catch(() => ({}))
@@ -460,9 +471,29 @@ export default function ManagementPage() {
                     </tr>
                   ) : (
                     users.map((user) => {
-                      // Ensure we have valid data
-                      const displayName = user.name?.trim() || user.email?.split('@')[0] || 'Unknown'
-                      const displayEmail = user.email?.trim() || 'No email'
+                      // Debug: log each user to see what we're getting
+                      if (process.env.NODE_ENV === 'development') {
+                        console.log('Rendering user:', user)
+                      }
+                      
+                      // Ensure we have valid data - handle empty strings, null, undefined
+                      const userName = (user.name && typeof user.name === 'string') ? user.name.trim() : ''
+                      const userEmail = (user.email && typeof user.email === 'string') ? user.email.trim() : ''
+                      
+                      // Fallback chain: name -> email prefix -> user ID -> Unknown
+                      let displayName = userName
+                      if (!displayName && userEmail) {
+                        displayName = userEmail.split('@')[0]
+                      }
+                      if (!displayName && user.id) {
+                        displayName = user.id.substring(0, 12) + '...' // Show first part of ID
+                      }
+                      if (!displayName) {
+                        displayName = 'Unknown'
+                      }
+                      
+                      const displayEmail = userEmail || (user.id ? `ID: ${user.id.substring(0, 8)}...` : 'No email')
+                      
                       return (
                       <tr key={user.id} className={user.id === userId ? 'current-user' : ''}>
                         <td>{displayName}</td>

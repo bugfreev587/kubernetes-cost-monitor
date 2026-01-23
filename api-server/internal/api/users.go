@@ -62,6 +62,9 @@ func (s *Server) listUsersHandler() gin.HandlerFunc {
 		}
 
 		for i, u := range users {
+			// Log user data for debugging
+			log.Printf("User %d: ID=%s, Email=%s, Name=%s, Role=%s, Status=%s", i+1, u.ID, u.Email, u.Name, u.Role, u.Status)
+
 			response.Users[i] = UserResponse{
 				ID:        u.ID,
 				Email:     u.Email,
@@ -72,6 +75,7 @@ func (s *Server) listUsersHandler() gin.HandlerFunc {
 			}
 		}
 
+		log.Printf("Returning %d users for tenant %d", len(response.Users), user.TenantID)
 		c.JSON(http.StatusOK, response)
 	}
 }
@@ -207,8 +211,8 @@ func (s *Server) inviteUserHandler() gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusCreated, gin.H{
-			"message":       responseMsg,
-			"email_sent":    emailSent,
+			"message":        responseMsg,
+			"email_sent":     emailSent,
 			"invitation_url": invitationURL,
 			"user": UserResponse{
 				ID:        invitedUser.ID,
