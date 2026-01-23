@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import HomePage from './pages/HomePage'
@@ -7,12 +8,28 @@ import DashboardRoute from './components/DashboardRoute'
 import ProfilePage from './pages/ProfilePage'
 import FeaturesPage from './pages/FeaturesPage'
 import PricingPage from './pages/PricingPage'
+import APIKeyModal from './components/APIKeyModal'
 import { useUserSync } from './hooks/useUserSync'
 import './App.css'
 
 // Component that syncs user with backend on sign in
 function UserSyncProvider({ children }: { children: React.ReactNode }) {
-  const { isSyncing, error } = useUserSync()
+  const { isSyncing, error, isNewUser, apiKey } = useUserSync()
+  const [showAPIKeyModal, setShowAPIKeyModal] = useState(false)
+  const [displayedAPIKey, setDisplayedAPIKey] = useState<string | null>(null)
+
+  // Show modal when new user with API key is detected
+  useEffect(() => {
+    if (isNewUser && apiKey) {
+      setDisplayedAPIKey(apiKey)
+      setShowAPIKeyModal(true)
+    }
+  }, [isNewUser, apiKey])
+
+  const handleCloseModal = () => {
+    setShowAPIKeyModal(false)
+    setDisplayedAPIKey(null)
+  }
 
   // Optionally show syncing state or error
   if (error) {
@@ -24,7 +41,14 @@ function UserSyncProvider({ children }: { children: React.ReactNode }) {
     // For now, we just render children to avoid blocking
   }
 
-  return <>{children}</>
+  return (
+    <>
+      {children}
+      {showAPIKeyModal && displayedAPIKey && (
+        <APIKeyModal apiKey={displayedAPIKey} onClose={handleCloseModal} />
+      )}
+    </>
+  )
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
