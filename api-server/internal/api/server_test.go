@@ -88,7 +88,7 @@ func TestHealthCheckHandler_AllHealthy(t *testing.T) {
 	mockTsDB := &mockTimescaleDB{healthErr: nil}
 	mockRdb := &mockRedisClient{pingErr: nil}
 
-	testServer := NewServer(&config.Config{}, mockPgDB, mockTsDB, mockRdb, nil)
+	testServer := NewServer(&config.Config{}, mockPgDB, mockTsDB, mockRdb, nil, nil)
 
 	// Call the handler
 	testServer.healthCheckHandler()(c)
@@ -117,7 +117,7 @@ func TestHealthCheckHandler_PostgresUnhealthy(t *testing.T) {
 	mockTsDB := &mockTimescaleDB{healthErr: nil}
 	mockRdb := &mockRedisClient{pingErr: nil}
 
-	testServer := NewServer(&config.Config{}, mockPgDB, mockTsDB, mockRdb, nil)
+	testServer := NewServer(&config.Config{}, mockPgDB, mockTsDB, mockRdb, nil, nil)
 
 	// Call the handler
 	testServer.healthCheckHandler()(c)
@@ -147,7 +147,7 @@ func TestHealthCheckHandler_TimescaleUnhealthy(t *testing.T) {
 	mockTsDB := &mockTimescaleDB{healthErr: errors.New("ts error")}
 	mockRdb := &mockRedisClient{pingErr: nil}
 
-	testServer := NewServer(&config.Config{}, mockPgDB, mockTsDB, mockRdb, nil)
+	testServer := NewServer(&config.Config{}, mockPgDB, mockTsDB, mockRdb, nil, nil)
 
 	// Call the handler
 	testServer.healthCheckHandler()(c)
@@ -177,7 +177,7 @@ func TestHealthCheckHandler_RedisUnhealthy(t *testing.T) {
 	mockTsDB := &mockTimescaleDB{healthErr: nil}
 	mockRdb := &mockRedisClient{pingErr: errors.New("redis error")}
 
-	testServer := NewServer(&config.Config{}, mockPgDB, mockTsDB, mockRdb, nil)
+	testServer := NewServer(&config.Config{}, mockPgDB, mockTsDB, mockRdb, nil, nil)
 
 	// Call the handler
 	testServer.healthCheckHandler()(c)
@@ -207,7 +207,7 @@ func TestHealthCheckHandler_AllUnhealthy(t *testing.T) {
 	mockTsDB := &mockTimescaleDB{healthErr: errors.New("ts error")}
 	mockRdb := &mockRedisClient{pingErr: errors.New("redis error")}
 
-	testServer := NewServer(&config.Config{}, mockPgDB, mockTsDB, mockRdb, nil)
+	testServer := NewServer(&config.Config{}, mockPgDB, mockTsDB, mockRdb, nil, nil)
 
 	// Call the handler
 	testServer.healthCheckHandler()(c)
