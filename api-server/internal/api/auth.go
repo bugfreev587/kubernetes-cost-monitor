@@ -25,6 +25,7 @@ type SyncUserResponse struct {
 	Email       string `json:"email"`
 	Name        string `json:"name"`
 	Role        string `json:"role"`
+	Status      string `json:"status"`
 	PricingPlan string `json:"pricing_plan"`
 	IsNewUser   bool   `json:"is_new_user"`
 }
@@ -47,7 +48,16 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 		result := db.Where("id = ?", req.ClerkUserID).First(&existingUser)
 
 		if result.Error == nil {
-			// User exists, return their info
+			// User exists - check if suspended
+			if existingUser.Status == models.StatusSuspended {
+				c.JSON(http.StatusForbidden, gin.H{
+					"error":   "user_suspended",
+					"message": "Your account has been suspended. Please contact your organization administrator.",
+				})
+				return
+			}
+
+			// Return user info
 			var tenant models.Tenant
 			db.First(&tenant, existingUser.TenantID)
 
@@ -57,6 +67,7 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 				Email:       existingUser.Email,
 				Name:        existingUser.Name,
 				Role:        existingUser.Role,
+				Status:      existingUser.Status,
 				PricingPlan: tenant.PricingPlan,
 				IsNewUser:   false,
 			})
@@ -82,13 +93,14 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			return
 		}
 
-		// Create user with Clerk ID as the primary key (first user is admin)
+		// Create user with Clerk ID as the primary key (first user is owner)
 		user := models.User{
 			ID:        req.ClerkUserID, // Use Clerk ID as primary key
 			TenantID:  tenant.ID,
 			Email:     req.Email,
 			Name:      name,
-			Role:      "admin",
+			Role:      models.RoleOwner, // First user of tenant is owner
+			Status:    models.StatusActive,
 			CreatedAt: time.Now(),
 		}
 
@@ -100,7 +112,7 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			return
 		}
 
-		log.Printf("Created new user: email=%s, tenant_id=%d, user_id=%s", req.Email, tenant.ID, user.ID)
+		log.Printf("Created new user (owner): email=%s, tenant_id=%d, user_id=%s", req.Email, tenant.ID, user.ID)
 
 		c.JSON(http.StatusCreated, SyncUserResponse{
 			UserID:      user.ID,
@@ -108,6 +120,7 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			Email:       user.Email,
 			Name:        user.Name,
 			Role:        user.Role,
+			Status:      user.Status,
 			PricingPlan: tenant.PricingPlan,
 			IsNewUser:   true,
 		})

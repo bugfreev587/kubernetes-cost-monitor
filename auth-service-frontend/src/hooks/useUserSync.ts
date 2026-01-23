@@ -3,13 +3,26 @@ import { useUser } from '@clerk/clerk-react'
 
 const API_SERVER_URL = import.meta.env.VITE_API_SERVER_URL || 'http://localhost:8080'
 
+// User roles in order of permission level
+export type UserRole = 'owner' | 'admin' | 'editor' | 'viewer'
+export type UserStatus = 'active' | 'suspended' | 'pending'
+
 interface UserSyncState {
   isSynced: boolean
   isSyncing: boolean
   error: string | null
   tenantId: number | null
   userId: string | null  // Clerk user ID (e.g., 'user_xxx')
+  role: UserRole | null
+  status: UserStatus | null
   pricingPlan: string | null
+}
+
+// Helper to check if user has at least a certain role level
+export function hasPermission(userRole: UserRole | null, requiredRole: UserRole): boolean {
+  if (!userRole) return false
+  const levels: Record<UserRole, number> = { owner: 4, admin: 3, editor: 2, viewer: 1 }
+  return levels[userRole] >= levels[requiredRole]
 }
 
 export function useUserSync(): UserSyncState {
@@ -20,6 +33,8 @@ export function useUserSync(): UserSyncState {
     error: null,
     tenantId: null,
     userId: null,
+    role: null,
+    status: null,
     pricingPlan: null,
   })
   const syncAttempted = useRef(false)
@@ -33,8 +48,16 @@ export function useUserSync(): UserSyncState {
         error: null,
         tenantId: null,
         userId: null,
+        role: null,
+        status: null,
         pricingPlan: null,
       })
+      // Clear localStorage
+      localStorage.removeItem('tenant_id')
+      localStorage.removeItem('user_id')
+      localStorage.removeItem('user_role')
+      localStorage.removeItem('user_status')
+      localStorage.removeItem('pricing_plan')
       syncAttempted.current = false
       return
     }
@@ -69,7 +92,11 @@ export function useUserSync(): UserSyncState {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          throw new Error(errorData.error || `HTTP ${response.status}`)
+          // Handle suspended user specifically
+          if (errorData.error === 'user_suspended') {
+            throw new Error('Your account has been suspended. Please contact your organization administrator.')
+          }
+          throw new Error(errorData.message || errorData.error || `HTTP ${response.status}`)
         }
 
         const data = await response.json()
@@ -80,12 +107,16 @@ export function useUserSync(): UserSyncState {
           error: null,
           tenantId: data.tenant_id,
           userId: data.user_id,
+          role: data.role as UserRole,
+          status: data.status as UserStatus,
           pricingPlan: data.pricing_plan,
         })
 
-        // Store tenant_id in localStorage for other hooks to use
+        // Store in localStorage for other hooks/components to use
         localStorage.setItem('tenant_id', String(data.tenant_id))
         localStorage.setItem('user_id', String(data.user_id))
+        localStorage.setItem('user_role', data.role || '')
+        localStorage.setItem('user_status', data.status || '')
         localStorage.setItem('pricing_plan', data.pricing_plan || '')
 
         if (data.is_new_user) {

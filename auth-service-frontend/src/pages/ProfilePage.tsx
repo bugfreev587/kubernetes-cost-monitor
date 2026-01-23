@@ -3,9 +3,15 @@ import { useUserSync } from '../hooks/useUserSync'
 import Navbar from '../components/Navbar'
 import '../App.css'
 
+// Helper to display role with proper formatting
+function formatRole(role: string | null): string {
+  if (!role) return 'Loading...'
+  return role.charAt(0).toUpperCase() + role.slice(1)
+}
+
 export default function ProfilePage() {
   const { user, isLoaded } = useUser()
-  const { userId, isSynced } = useUserSync()
+  const { userId, role, tenantId, pricingPlan, isSynced } = useUserSync()
 
   if (!isLoaded) {
     return (
@@ -44,6 +50,9 @@ export default function ProfilePage() {
                 <p><strong>Last Name:</strong> {user.lastName}</p>
               )}
               <p><strong>User ID:</strong> {isSynced ? userId : 'Loading...'}</p>
+              <p><strong>Role:</strong> {isSynced ? formatRole(role) : 'Loading...'}</p>
+              <p><strong>Tenant ID:</strong> {isSynced ? tenantId : 'Loading...'}</p>
+              <p><strong>Pricing Plan:</strong> {isSynced ? (pricingPlan || 'Starter') : 'Loading...'}</p>
             </div>
           </div>
         </div>

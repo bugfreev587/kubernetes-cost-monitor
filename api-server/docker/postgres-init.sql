@@ -37,9 +37,14 @@ CREATE TABLE IF NOT EXISTS users (
   tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   email TEXT NOT NULL UNIQUE,
   name TEXT,
-  role TEXT NOT NULL DEFAULT 'viewer',  -- 'admin', 'editor', 'viewer'
-  created_at timestamptz NOT NULL DEFAULT now()
+  role TEXT NOT NULL DEFAULT 'viewer',  -- 'owner', 'admin', 'editor', 'viewer'
+  status TEXT NOT NULL DEFAULT 'active',  -- 'active', 'suspended'
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT users_role_check CHECK (role IN ('owner', 'admin', 'editor', 'viewer')),
+  CONSTRAINT users_status_check CHECK (status IN ('active', 'suspended', 'pending'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
 
 CREATE TABLE IF NOT EXISTS api_keys (
   id BIGSERIAL PRIMARY KEY,
@@ -82,13 +87,13 @@ INSERT INTO tenants (id, name, pricing_plan) VALUES
 -- ============================
 -- Test Data: Users
 -- ============================
--- First user of each tenant is admin, others are viewers
+-- First user of each tenant is owner, others are viewers
 -- id is the Clerk user ID (using test IDs here)
-INSERT INTO users (id, tenant_id, email, name, role) VALUES
-  ('user_test_wile_coyote', 1, 'wile.coyote@acme.com', 'Wile E. Coyote', 'admin'),
-  ('user_test_road_runner', 1, 'road.runner@acme.com', 'Road Runner', 'viewer'),
-  ('user_test_hank_scorpio', 2, 'hank.scorpio@globex.com', 'Hank Scorpio', 'admin'),
-  ('user_test_miles_dyson', 3, 'miles.dyson@skynet.com', 'Miles Dyson', 'admin');
+INSERT INTO users (id, tenant_id, email, name, role, status) VALUES
+  ('user_test_wile_coyote', 1, 'wile.coyote@acme.com', 'Wile E. Coyote', 'owner', 'active'),
+  ('user_test_road_runner', 1, 'road.runner@acme.com', 'Road Runner', 'viewer', 'active'),
+  ('user_test_hank_scorpio', 2, 'hank.scorpio@globex.com', 'Hank Scorpio', 'owner', 'active'),
+  ('user_test_miles_dyson', 3, 'miles.dyson@skynet.com', 'Miles Dyson', 'owner', 'active');
 
 -- ============================
 -- Test Data: API Keys

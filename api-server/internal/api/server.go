@@ -23,6 +23,7 @@ type Server struct {
 	apiKeySvc           *services.APIKeyService
 	planSvc             *services.PlanService
 	clerkWebhookHandler *ClerkWebhookHandler
+	rbac                *middleware.RBACMiddleware
 	router              *gin.Engine
 }
 
@@ -36,6 +37,9 @@ func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, ti
 	// Initialize Clerk webhook handler (grafanaService is nil for now)
 	clerkWebhookHandler := NewClerkWebhookHandler(postgresDB.GetPostgresDB(), nil)
 
+	// Initialize RBAC middleware
+	rbacMiddleware := middleware.NewRBACMiddleware(postgresDB.GetPostgresDB())
+
 	server := &Server{
 		serverConfig:        &cfg.Server,
 		postgresDB:          postgresDB,
@@ -44,6 +48,7 @@ func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, ti
 		apiKeySvc:           apiKeySvc,
 		planSvc:             planSvc,
 		clerkWebhookHandler: clerkWebhookHandler,
+		rbac:                rbacMiddleware,
 		router:              router,
 	}
 
@@ -68,52 +73,117 @@ func (s *Server) setupMiddleware() {
 }
 
 func (s *Server) setupRoutes() {
+	// API key middleware for agent authentication
+	apiKeyAuth := middleware.NewAPIKeyMiddleware(s.apiKeySvc)
 
-	// --- health ---
+	// ===========================================
+	// PUBLIC ROUTES (no authentication required)
+	// ===========================================
+
+	// Health check
 	s.router.GET("/v1/health", s.healthCheckHandler())
 
-	// --- public pricing plans ---
+	// Public pricing plans (for pricing page)
 	s.router.GET("/v1/plans", s.listPricingPlansHandler())
 
-	// --- admin ---
-	s.router.POST("/v1/admin/api_keys", s.makeCreateAPIKeyHandler())
-	s.router.GET("/v1/admin/tenants/:tenant_id/pricing-plan", s.getTenantPricingPlanHandler())
-	s.router.PATCH("/v1/admin/tenants/:tenant_id/pricing-plan", s.updateTenantPricingPlanHandler())
-	s.router.GET("/v1/admin/tenants/:tenant_id/usage", s.getTenantUsageHandler())
+	// Auth endpoints (user sync from frontend after Clerk auth)
+	s.router.POST("/v1/auth/sync", s.syncUserHandler())
 
-	// --- agent ingest (protected with API Key Middleware) ---
-	authMiddleware := middleware.NewAPIKeyMiddleware(s.apiKeySvc)
-	s.router.POST("/v1/ingest", authMiddleware, s.makeIngestHandler())
-
-	// --- costs (protected with API Key Middleware) ---
-	costAuthMiddleware := middleware.NewAPIKeyMiddleware(s.apiKeySvc)
-	s.router.GET("/v1/costs/namespaces", costAuthMiddleware, s.getCostsByNamespace)
-	s.router.GET("/v1/costs/clusters", costAuthMiddleware, s.getCostsByCluster)
-	s.router.GET("/v1/costs/utilization", costAuthMiddleware, s.getUtilizationVsRequests)
-	s.router.GET("/v1/costs/trends", costAuthMiddleware, s.getCostTrends)
-
-	// --- allocation (OpenCost-compatible API, protected with API Key Middleware) ---
-	allocAuthMiddleware := middleware.NewAPIKeyMiddleware(s.apiKeySvc)
-	s.router.GET("/v1/allocation", allocAuthMiddleware, s.getAllocation)
-	s.router.GET("/v1/allocation/compute", allocAuthMiddleware, s.getAllocationCompute)
-	s.router.GET("/v1/allocation/summary", allocAuthMiddleware, s.getAllocationSummary)
-	s.router.GET("/v1/allocation/summary/topline", allocAuthMiddleware, s.getAllocationTopline)
-
-	// --- recommendations (protected with API Key Middleware) ---
-	recAuthMiddleware := middleware.NewAPIKeyMiddleware(s.apiKeySvc)
-	s.router.GET("/v1/recommendations", recAuthMiddleware, s.getRecommendations)
-	s.router.POST("/v1/recommendations/generate", recAuthMiddleware, s.generateRecommendations)
-	s.router.POST("/v1/recommendations/:id/apply", recAuthMiddleware, s.applyRecommendation)
-	s.router.POST("/v1/recommendations/:id/dismiss", recAuthMiddleware, s.dismissRecommendation)
-
-	// --- Clerk webhooks (for user signup/update/delete) ---
+	// Clerk webhooks (verified by Clerk signature)
 	s.router.POST("/webhooks/clerk", s.clerkWebhookHandler.HandleWebhook)
 
-	// --- admin user metadata endpoint ---
-	s.router.POST("/v1/admin/users/metadata", s.clerkWebhookHandler.UpdateUserMetadata)
+	// ===========================================
+	// AGENT ROUTES (API key authentication only)
+	// ===========================================
 
-	// --- auth endpoints (user sync from frontend) ---
-	s.router.POST("/v1/auth/sync", s.syncUserHandler())
+	// Metrics ingestion - API key required (agent sends metrics)
+	s.router.POST("/v1/ingest", apiKeyAuth, s.makeIngestHandler())
+
+	// ===========================================
+	// VIEWER+ ROUTES (authenticated user, any role)
+	// ===========================================
+
+	// Dashboard routes group - require user auth + viewer role
+	dashboard := s.router.Group("/v1")
+	dashboard.Use(s.rbac.RequireUser(), s.rbac.RequireViewer())
+	{
+		// Cost data - read only (viewer can access)
+		dashboard.GET("/costs/namespaces", s.getCostsByNamespace)
+		dashboard.GET("/costs/clusters", s.getCostsByCluster)
+		dashboard.GET("/costs/utilization", s.getUtilizationVsRequests)
+		dashboard.GET("/costs/trends", s.getCostTrends)
+
+		// Allocation data - read only
+		dashboard.GET("/allocation", s.getAllocation)
+		dashboard.GET("/allocation/compute", s.getAllocationCompute)
+		dashboard.GET("/allocation/summary", s.getAllocationSummary)
+		dashboard.GET("/allocation/summary/topline", s.getAllocationTopline)
+
+		// Recommendations - read only
+		dashboard.GET("/recommendations", s.getRecommendations)
+
+		// User management - view team members
+		dashboard.GET("/users", s.listUsersHandler())
+		dashboard.GET("/users/:user_id", s.getUserHandler())
+	}
+
+	// ===========================================
+	// EDITOR+ ROUTES (editor, admin, owner)
+	// ===========================================
+
+	editor := s.router.Group("/v1")
+	editor.Use(s.rbac.RequireUser(), s.rbac.RequireEditor())
+	{
+		// Recommendations - can generate, apply, dismiss
+		editor.POST("/recommendations/generate", s.generateRecommendations)
+		editor.POST("/recommendations/:id/apply", s.applyRecommendation)
+		editor.POST("/recommendations/:id/dismiss", s.dismissRecommendation)
+	}
+
+	// ===========================================
+	// ADMIN+ ROUTES (admin, owner)
+	// ===========================================
+
+	admin := s.router.Group("/v1/admin")
+	admin.Use(s.rbac.RequireUser(), s.rbac.RequireAdmin())
+	{
+		// API key management
+		admin.POST("/api_keys", s.makeCreateAPIKeyHandler())
+		admin.GET("/api_keys", s.listAPIKeysHandler())
+		admin.DELETE("/api_keys/:key_id", s.revokeAPIKeyHandler())
+
+		// Tenant management (view)
+		admin.GET("/tenants/:tenant_id/pricing-plan", s.rbac.RequireTenantAccess("tenant_id"), s.getTenantPricingPlanHandler())
+		admin.GET("/tenants/:tenant_id/usage", s.rbac.RequireTenantAccess("tenant_id"), s.getTenantUsageHandler())
+
+		// User management - invite, suspend, promote to editor
+		admin.POST("/users/invite", s.inviteUserHandler())
+		admin.PATCH("/users/:user_id/suspend", s.suspendUserHandler())
+		admin.PATCH("/users/:user_id/unsuspend", s.unsuspendUserHandler())
+		admin.PATCH("/users/:user_id/role", s.updateUserRoleHandler())
+		admin.DELETE("/users/:user_id", s.removeUserHandler())
+	}
+
+	// ===========================================
+	// OWNER ONLY ROUTES
+	// ===========================================
+
+	owner := s.router.Group("/v1/owner")
+	owner.Use(s.rbac.RequireUser(), s.rbac.RequireOwner())
+	{
+		// Pricing plan changes (billing)
+		owner.PATCH("/tenants/:tenant_id/pricing-plan", s.rbac.RequireTenantAccess("tenant_id"), s.updateTenantPricingPlanHandler())
+
+		// Admin management - only owner can promote to admin or remove admins
+		owner.POST("/users/:user_id/promote-admin", s.promoteToAdminHandler())
+		owner.DELETE("/users/:user_id/demote-admin", s.demoteAdminHandler())
+
+		// Transfer ownership
+		owner.POST("/transfer-ownership", s.transferOwnershipHandler())
+
+		// Delete tenant (danger zone)
+		owner.DELETE("/tenants/:tenant_id", s.rbac.RequireTenantAccess("tenant_id"), s.deleteTenantHandler())
+	}
 }
 
 func (s *Server) Run() error {

@@ -119,12 +119,12 @@ func (h *ClerkWebhookHandler) handleUserCreated(c *gin.Context, data map[string]
 		log.Printf("Created new tenant %d for user %s", tenantID, email)
 	}
 
-	// Determine user role: first user of tenant is admin, others are viewers
-	role := "viewer"
+	// Determine user role: first user of tenant is owner, others are viewers
+	role := models.RoleViewer
 	var existingUserCount int64
 	h.db.Model(&models.User{}).Where("tenant_id = ?", tenantID).Count(&existingUserCount)
 	if existingUserCount == 0 {
-		role = "admin" // First user becomes admin
+		role = models.RoleOwner // First user becomes owner
 	}
 
 	// Create user in database with Clerk ID as primary key
@@ -134,6 +134,7 @@ func (h *ClerkWebhookHandler) handleUserCreated(c *gin.Context, data map[string]
 		Email:     email,
 		Name:      name,
 		Role:      role,
+		Status:    models.StatusActive,
 		CreatedAt: time.Now(),
 	}
 

@@ -32,8 +32,51 @@ type User struct {
 	TenantID  uint
 	Email     string `gorm:"uniqueIndex"`
 	Name      string
-	Role      string `gorm:"default:viewer"` // 'admin', 'editor', 'viewer'
+	Role      string `gorm:"default:viewer"` // 'owner', 'admin', 'editor', 'viewer'
+	Status    string `gorm:"default:active"` // 'active', 'suspended'
 	CreatedAt time.Time
+}
+
+// Role hierarchy constants
+const (
+	RoleOwner  = "owner"
+	RoleAdmin  = "admin"
+	RoleEditor = "editor"
+	RoleViewer = "viewer"
+)
+
+// User status constants
+const (
+	StatusActive    = "active"
+	StatusSuspended = "suspended"
+	StatusPending   = "pending" // Invited but not yet signed up
+)
+
+// RoleLevel returns the numeric level of a role for comparison
+// Higher level = more permissions
+func RoleLevel(role string) int {
+	switch role {
+	case RoleOwner:
+		return 4
+	case RoleAdmin:
+		return 3
+	case RoleEditor:
+		return 2
+	case RoleViewer:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// HasPermission checks if a user's role has at least the required role level
+func (u *User) HasPermission(requiredRole string) bool {
+	return RoleLevel(u.Role) >= RoleLevel(requiredRole)
+}
+
+// IsActive checks if the user is not suspended
+func (u *User) IsActive() bool {
+	return u.Status == StatusActive
 }
 
 type APIKey struct {
