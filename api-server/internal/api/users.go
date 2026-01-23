@@ -196,9 +196,20 @@ func (s *Server) inviteUserHandler() gin.HandlerFunc {
 			responseMsg = "User invited successfully. Note: Invitation email could not be sent - please share the signup link manually."
 		}
 
+		// Generate invitation URL (signup page URL)
+		invitationURL := ""
+		if s.clerkSvc != nil {
+			// Get frontend URL from Clerk service
+			frontendURL := s.clerkSvc.GetFrontendURL()
+			if frontendURL != "" {
+				invitationURL = frontendURL + "/sign-up"
+			}
+		}
+
 		c.JSON(http.StatusCreated, gin.H{
-			"message":    responseMsg,
-			"email_sent": emailSent,
+			"message":       responseMsg,
+			"email_sent":    emailSent,
+			"invitation_url": invitationURL,
 			"user": UserResponse{
 				ID:        invitedUser.ID,
 				Email:     invitedUser.Email,

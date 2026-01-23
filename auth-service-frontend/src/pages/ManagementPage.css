@@ -445,6 +445,59 @@
   word-break: break-all;
 }
 
+/* Invitation Success Message */
+.invitation-success-message {
+  padding: 1rem;
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.invitation-success-message p {
+  margin: 0;
+  color: #065f46;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Invitation URL Section */
+.invitation-url-section {
+  margin-top: 1rem;
+}
+
+.invitation-url-section label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.9rem;
+}
+
+.invitation-url-display {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.invitation-url-input {
+  flex: 1;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: 'Monaco', 'Menlo', monospace;
+  color: #374151;
+  word-break: break-all;
+}
+
+.invitation-url-input:focus {
+  outline: none;
+  border-color: #646cff;
+  box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.1);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .management-container {

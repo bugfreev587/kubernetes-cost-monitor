@@ -36,6 +36,11 @@ func (s *ClerkService) IsConfigured() bool {
 	return s.secretKey != ""
 }
 
+// GetFrontendURL returns the frontend URL configured for this service
+func (s *ClerkService) GetFrontendURL() string {
+	return s.frontendURL
+}
+
 // InvitationRequest represents a request to create an invitation
 type InvitationRequest struct {
 	EmailAddress   string                 `json:"email_address"`

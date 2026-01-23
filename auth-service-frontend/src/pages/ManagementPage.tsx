@@ -49,6 +49,8 @@ export default function ManagementPage() {
   const [inviteRole, setInviteRole] = useState<'viewer' | 'editor'>('viewer')
   const [transferUserId, setTransferUserId] = useState('')
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [invitationURL, setInvitationURL] = useState<string | null>(null)
+  const [invitationCopied, setInvitationCopied] = useState(false)
 
   const isOwner = role === 'owner'
   const isAdmin = hasPermission(role, 'admin')
@@ -133,11 +135,10 @@ export default function ManagementPage() {
         throw new Error(data.message || data.error || 'Failed to invite user')
       }
 
+      const data = await response.json()
+      setInvitationURL(data.invitation_url || null)
       showSuccess(`Invitation sent to ${inviteEmail}`)
-      setShowInviteModal(false)
-      setInviteEmail('')
-      setInviteName('')
-      setInviteRole('viewer')
+      // Don't close modal yet - show invitation URL
       fetchUsers()
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to invite user')
@@ -376,10 +377,20 @@ export default function ManagementPage() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      showSuccess('Copied to clipboard')
+      setInvitationCopied(true)
+      setTimeout(() => setInvitationCopied(false), 2000)
     } catch {
       showError('Failed to copy')
     }
+  }
+
+  const handleCloseInviteModal = () => {
+    setShowInviteModal(false)
+    setInviteEmail('')
+    setInviteName('')
+    setInviteRole('viewer')
+    setInvitationURL(null)
+    setInvitationCopied(false)
   }
 
   if (!isSynced || loading) {
@@ -653,48 +664,84 @@ export default function ManagementPage() {
 
       {/* Invite User Modal */}
       {showInviteModal && (
-        <div className="modal-overlay" onClick={() => setShowInviteModal(false)}>
+        <div className="modal-overlay" onClick={handleCloseInviteModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Invite User</h2>
             </div>
             <div className="modal-body">
-              <div className="form-group">
-                <label>Email</label>
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="user@example.com"
-                />
-              </div>
-              <div className="form-group">
-                <label>Name (optional)</label>
-                <input
-                  type="text"
-                  value={inviteName}
-                  onChange={(e) => setInviteName(e.target.value)}
-                  placeholder="John Doe"
-                />
-              </div>
-              <div className="form-group">
-                <label>Role</label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as 'viewer' | 'editor')}
-                >
-                  <option value="viewer">Viewer</option>
-                  <option value="editor">Editor</option>
-                </select>
-              </div>
+              {!invitationURL ? (
+                <>
+                  <div className="form-group">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="user@example.com"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Name (optional)</label>
+                    <input
+                      type="text"
+                      value={inviteName}
+                      onChange={(e) => setInviteName(e.target.value)}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Role</label>
+                    <select
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value as 'viewer' | 'editor')}
+                    >
+                      <option value="viewer">Viewer</option>
+                      <option value="editor">Editor</option>
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="invitation-success-message">
+                    <p>
+                      <strong>Invitation sent!</strong> The invited user will receive an invitation link via email.
+                      {!invitationURL.includes('localhost') && (
+                        <> If they don't receive it, you can copy and share the link below.</>
+                      )}
+                    </p>
+                  </div>
+                  {invitationURL && (
+                    <div className="invitation-url-section">
+                      <label>Invitation URL</label>
+                      <div className="invitation-url-display">
+                        <input
+                          type="text"
+                          readOnly
+                          value={invitationURL}
+                          className="invitation-url-input"
+                        />
+                        <button
+                          className="btn btn-small btn-secondary"
+                          onClick={() => copyToClipboard(invitationURL)}
+                        >
+                          {invitationCopied ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowInviteModal(false)}>
-                Cancel
+              <button className="btn btn-secondary" onClick={handleCloseInviteModal}>
+                {invitationURL ? 'Close' : 'Cancel'}
               </button>
-              <button className="btn btn-primary" onClick={handleInviteUser}>
-                Send Invitation
-              </button>
+              {!invitationURL && (
+                <button className="btn btn-primary" onClick={handleInviteUser}>
+                  Send Invitation
+                </button>
+              )}
             </div>
           </div>
         </div>
