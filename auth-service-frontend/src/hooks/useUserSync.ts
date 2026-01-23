@@ -16,6 +16,8 @@ interface UserSyncState {
   role: UserRole | null
   status: UserStatus | null
   pricingPlan: string | null
+  isNewUser: boolean
+  apiKey: string | null  // Only set for new users on first sync
 }
 
 // Helper to check if user has at least a certain role level
@@ -36,6 +38,8 @@ export function useUserSync(): UserSyncState {
     role: null,
     status: null,
     pricingPlan: null,
+    isNewUser: false,
+    apiKey: null,
   })
   const syncAttempted = useRef(false)
 
@@ -51,6 +55,8 @@ export function useUserSync(): UserSyncState {
         role: null,
         status: null,
         pricingPlan: null,
+        isNewUser: false,
+        apiKey: null,
       })
       // Clear localStorage
       localStorage.removeItem('tenant_id')
@@ -110,6 +116,8 @@ export function useUserSync(): UserSyncState {
           role: data.role as UserRole,
           status: data.status as UserStatus,
           pricingPlan: data.pricing_plan,
+          isNewUser: data.is_new_user || false,
+          apiKey: data.api_key || null,
         })
 
         // Store in localStorage for other hooks/components to use
@@ -121,6 +129,9 @@ export function useUserSync(): UserSyncState {
 
         if (data.is_new_user) {
           console.log('New user created:', data.email)
+          if (data.api_key) {
+            console.log('API key created for new tenant')
+          }
         }
       } catch (err) {
         console.error('Failed to sync user:', err)

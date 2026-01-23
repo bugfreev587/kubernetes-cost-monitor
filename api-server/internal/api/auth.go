@@ -20,14 +20,15 @@ type SyncUserRequest struct {
 
 // SyncUserResponse represents the response for user sync
 type SyncUserResponse struct {
-	UserID      string `json:"user_id"`
-	TenantID    uint   `json:"tenant_id"`
-	Email       string `json:"email"`
-	Name        string `json:"name"`
-	Role        string `json:"role"`
-	Status      string `json:"status"`
-	PricingPlan string `json:"pricing_plan"`
-	IsNewUser   bool   `json:"is_new_user"`
+	UserID      string  `json:"user_id"`
+	TenantID    uint    `json:"tenant_id"`
+	Email       string  `json:"email"`
+	Name        string  `json:"name"`
+	Role        string  `json:"role"`
+	Status      string  `json:"status"`
+	PricingPlan string  `json:"pricing_plan"`
+	IsNewUser   bool    `json:"is_new_user"`
+	APIKey      *string `json:"api_key,omitempty"` // Only returned for new users
 }
 
 // syncUserHandler handles POST /v1/auth/sync
@@ -114,6 +115,19 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 
 		log.Printf("Created new user (owner): email=%s, tenant_id=%d, user_id=%s", req.Email, tenant.ID, user.ID)
 
+		// Create a default API key for the new tenant
+		var apiKeyStr *string
+		expiresAt := time.Now().AddDate(1, 0, 0) // Expires in 1 year
+		keyID, secret, err := s.apiKeySvc.CreateKey(c.Request.Context(), tenant.ID, []string{"*"}, &expiresAt)
+		if err != nil {
+			log.Printf("Warning: Failed to create default API key for tenant %d: %v", tenant.ID, err)
+			// Don't fail the signup, just log the warning
+		} else {
+			fullKey := fmt.Sprintf("%s:%s", keyID, secret)
+			apiKeyStr = &fullKey
+			log.Printf("Created default API key for tenant %d: key_id=%s", tenant.ID, keyID)
+		}
+
 		c.JSON(http.StatusCreated, SyncUserResponse{
 			UserID:      user.ID,
 			TenantID:    tenant.ID,
@@ -123,6 +137,7 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			Status:      user.Status,
 			PricingPlan: tenant.PricingPlan,
 			IsNewUser:   true,
+			APIKey:      apiKeyStr,
 		})
 	}
 }
