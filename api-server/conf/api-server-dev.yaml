@@ -30,3 +30,7 @@ ingest:
 
 agent:
   default_api_key_id: ""  # fill after creating key in dev
+
+clerk:
+  secret_key: ""  # Clerk Secret Key from dashboard.clerk.com - set via CLERK_SECRET_KEY env var
+  frontend_url: "http://localhost:5173"  # Frontend URL for invitation redirect

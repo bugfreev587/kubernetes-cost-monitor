@@ -30,3 +30,7 @@ ingest:
 
 agent:
   default_api_key_id: ""  # Optional: set default API key ID
+
+clerk:
+  secret_key: ""  # MUST be set from CLERK_SECRET_KEY environment variable
+  frontend_url: "https://my-k8s-cost-monitor.dedyn.io"  # Frontend URL for invitation redirect

@@ -40,6 +40,11 @@ type AgentCfg struct {
 	DefaultAPIKeyID string `mapstructure:"default_api_key_id"`
 }
 
+type ClerkCfg struct {
+	SecretKey   string `mapstructure:"secret_key" yaml:"secret_key"`     // Clerk Secret Key for Backend API
+	FrontendURL string `mapstructure:"frontend_url" yaml:"frontend_url"` // Frontend URL for invitation redirect
+}
+
 type Config struct {
 	Environment string      `mapstructure:"environment"`
 	Server      ServerCfg   `mapstructure:"server"`
@@ -49,6 +54,7 @@ type Config struct {
 	Security    SecurityCfg `mapstructure:"security"`
 	Ingest      IngestCfg   `mapstructure:"ingest"`
 	Agent       AgentCfg    `mapstructure:"agent"`
+	Clerk       ClerkCfg    `mapstructure:"clerk" yaml:"clerk"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -73,5 +79,27 @@ func LoadConfigFromPath(path string) (*Config, error) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config file: %w", err)
 	}
+
+	// Override with environment variables
+	applyEnvOverrides(&cfg)
+
 	return &cfg, nil
+}
+
+// applyEnvOverrides applies environment variable overrides to the config
+func applyEnvOverrides(cfg *Config) {
+	// Clerk secret key - sensitive, should come from env
+	if clerkSecretKey := os.Getenv("CLERK_SECRET_KEY"); clerkSecretKey != "" {
+		cfg.Clerk.SecretKey = clerkSecretKey
+	}
+
+	// Clerk frontend URL override
+	if clerkFrontendURL := os.Getenv("CLERK_FRONTEND_URL"); clerkFrontendURL != "" {
+		cfg.Clerk.FrontendURL = clerkFrontendURL
+	}
+
+	// API key pepper - sensitive, should come from env
+	if apiKeyPepper := os.Getenv("API_KEY_PEPPER"); apiKeyPepper != "" {
+		cfg.Security.APIKeyPepper = apiKeyPepper
+	}
 }

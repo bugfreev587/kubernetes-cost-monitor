@@ -22,6 +22,7 @@ type Server struct {
 	redisClient         app_interfaces.RedisService
 	apiKeySvc           *services.APIKeyService
 	planSvc             *services.PlanService
+	clerkSvc            *services.ClerkService
 	clerkWebhookHandler *ClerkWebhookHandler
 	rbac                *middleware.RBACMiddleware
 	router              *gin.Engine
@@ -37,6 +38,9 @@ func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, ti
 	// Initialize Clerk webhook handler (grafanaService is nil for now)
 	clerkWebhookHandler := NewClerkWebhookHandler(postgresDB.GetPostgresDB(), nil)
 
+	// Initialize Clerk service for invitation emails
+	clerkSvc := services.NewClerkService(cfg.Clerk.SecretKey, cfg.Clerk.FrontendURL)
+
 	// Initialize RBAC middleware
 	rbacMiddleware := middleware.NewRBACMiddleware(postgresDB.GetPostgresDB())
 
@@ -47,6 +51,7 @@ func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, ti
 		redisClient:         redisClient,
 		apiKeySvc:           apiKeySvc,
 		planSvc:             planSvc,
+		clerkSvc:            clerkSvc,
 		clerkWebhookHandler: clerkWebhookHandler,
 		rbac:                rbacMiddleware,
 		router:              router,

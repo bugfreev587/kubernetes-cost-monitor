@@ -107,7 +107,7 @@ func (s *Server) getUserHandler() gin.HandlerFunc {
 }
 
 // inviteUserHandler creates an invitation for a new user
-// Note: This creates a placeholder user that will be linked when they sign up via Clerk
+// This sends an invitation email via Clerk and creates a placeholder user in the database
 func (s *Server) inviteUserHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		currentUser, ok := middleware.GetUserFromContext(c)
@@ -149,28 +149,56 @@ func (s *Server) inviteUserHandler() gin.HandlerFunc {
 			return
 		}
 
-		// Create a pending invitation (user will be created with proper Clerk ID when they sign up)
-		// For now, we'll create a placeholder user that will be updated when they sign up
+		// Send invitation via Clerk (this sends the email)
+		var clerkInvitationID string
+		emailSent := false
+		if s.clerkSvc != nil && s.clerkSvc.IsConfigured() {
+			invResp, err := s.clerkSvc.CreateInvitation(c.Request.Context(), req.Email, currentUser.TenantID, role, currentUser.Name)
+			if err != nil {
+				log.Printf("Failed to send Clerk invitation (will continue without email): %v", err)
+				// Continue without email - user can still be added manually
+			} else {
+				clerkInvitationID = invResp.ID
+				emailSent = true
+				log.Printf("Clerk invitation sent: id=%s, email=%s", invResp.ID, req.Email)
+			}
+		} else {
+			log.Printf("Clerk not configured - invitation email will not be sent for %s", req.Email)
+		}
+
+		// Create a pending user in the database (will be activated when they sign up)
 		invitedUser := models.User{
 			ID:        fmt.Sprintf("pending_%s_%d", req.Email, time.Now().UnixNano()),
 			TenantID:  currentUser.TenantID,
 			Email:     req.Email,
 			Name:      req.Name,
 			Role:      role,
-			Status:    "pending", // Special status for invited users
+			Status:    models.StatusPending, // Special status for invited users
 			CreatedAt: time.Now(),
 		}
 
 		if err := db.Create(&invitedUser).Error; err != nil {
 			log.Printf("Failed to create invited user: %v", err)
+			// If we sent a Clerk invitation, try to revoke it
+			if clerkInvitationID != "" && s.clerkSvc != nil {
+				_ = s.clerkSvc.RevokeInvitation(c.Request.Context(), clerkInvitationID)
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to invite user"})
 			return
 		}
 
-		log.Printf("User invited: email=%s, role=%s, by=%s", req.Email, role, currentUser.Email)
+		log.Printf("User invited: email=%s, role=%s, by=%s, email_sent=%v", req.Email, role, currentUser.Email, emailSent)
+
+		responseMsg := "User invited successfully"
+		if emailSent {
+			responseMsg = "User invited successfully. Invitation email sent."
+		} else {
+			responseMsg = "User invited successfully. Note: Invitation email could not be sent - please share the signup link manually."
+		}
 
 		c.JSON(http.StatusCreated, gin.H{
-			"message": "User invited successfully",
+			"message":    responseMsg,
+			"email_sent": emailSent,
 			"user": UserResponse{
 				ID:        invitedUser.ID,
 				Email:     invitedUser.Email,
