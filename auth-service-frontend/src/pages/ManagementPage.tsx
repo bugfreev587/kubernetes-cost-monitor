@@ -470,34 +470,10 @@ export default function ManagementPage() {
                       </td>
                     </tr>
                   ) : (
-                    users.map((user) => {
-                      // Debug: log each user to see what we're getting
-                      if (import.meta.env.DEV) {
-                        console.log('Rendering user:', user)
-                      }
-                      
-                      // Ensure we have valid data - handle empty strings, null, undefined
-                      const userName = (user.name && typeof user.name === 'string') ? user.name.trim() : ''
-                      const userEmail = (user.email && typeof user.email === 'string') ? user.email.trim() : ''
-                      
-                      // Fallback chain: name -> email prefix -> user ID -> Unknown
-                      let displayName = userName
-                      if (!displayName && userEmail) {
-                        displayName = userEmail.split('@')[0]
-                      }
-                      if (!displayName && user.id) {
-                        displayName = user.id.substring(0, 12) + '...' // Show first part of ID
-                      }
-                      if (!displayName) {
-                        displayName = 'Unknown'
-                      }
-                      
-                      const displayEmail = userEmail || (user.id ? `ID: ${user.id.substring(0, 8)}...` : 'No email')
-                      
-                      return (
+                    users.map((user) => (
                       <tr key={user.id} className={user.id === userId ? 'current-user' : ''}>
-                        <td>{displayName}</td>
-                        <td>{displayEmail}</td>
+                        <td>{user.name || user.email?.split('@')[0] || 'Unknown'}</td>
+                        <td>{user.email || 'No email'}</td>
                       <td>
                         <span className={`role-badge role-badge-${user.role}`}>
                           {user.role}
@@ -585,8 +561,7 @@ export default function ManagementPage() {
                         {user.id === userId && <span className="you-badge">You</span>}
                       </td>
                     </tr>
-                      )
-                    })
+                    ))
                   )}
                 </tbody>
               </table>
