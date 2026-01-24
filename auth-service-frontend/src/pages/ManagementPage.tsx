@@ -472,7 +472,7 @@ export default function ManagementPage() {
                   ) : (
                     users.map((user) => {
                       // Debug: log each user to see what we're getting
-                      if (process.env.NODE_ENV === 'development') {
+                      if (import.meta.env.DEV) {
                         console.log('Rendering user:', user)
                       }
                       
