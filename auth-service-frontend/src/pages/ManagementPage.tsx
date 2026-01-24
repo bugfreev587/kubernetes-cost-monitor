@@ -69,20 +69,20 @@ export default function ManagementPage() {
       })
       if (response.ok) {
         const data = await response.json()
-        console.log('Fetched users data:', data)
-        
+        console.log('API Response:', JSON.stringify(data, null, 2))
+
         // Handle different possible response structures
-        let usersList = []
+        let usersList: User[] = []
         if (Array.isArray(data)) {
           usersList = data
         } else if (data.users && Array.isArray(data.users)) {
           usersList = data.users
-        } else if (data.Users && Array.isArray(data.Users)) {
-          usersList = data.Users
         }
-        
-        console.log('Users list:', usersList)
-        console.log('First user sample:', usersList[0])
+
+        console.log('Users to render:', usersList.length, 'users')
+        usersList.forEach((u, i) => {
+          console.log(`User ${i}: name="${u.name}", email="${u.email}", role="${u.role}"`)
+        })
         setUsers(usersList)
       } else {
         const errorData = await response.json().catch(() => ({}))
@@ -470,7 +470,9 @@ export default function ManagementPage() {
                       </td>
                     </tr>
                   ) : (
-                    users.map((user) => (
+                    users.map((user) => {
+                      console.log('Rendering row for:', user.id, user.name, user.email)
+                      return (
                       <tr key={user.id} className={user.id === userId ? 'current-user' : ''}>
                         <td>{user.name || user.email?.split('@')[0] || 'Unknown'}</td>
                         <td>{user.email || 'No email'}</td>
@@ -561,7 +563,8 @@ export default function ManagementPage() {
                         {user.id === userId && <span className="you-badge">You</span>}
                       </td>
                     </tr>
-                    ))
+                      )
+                    })
                   )}
                 </tbody>
               </table>
