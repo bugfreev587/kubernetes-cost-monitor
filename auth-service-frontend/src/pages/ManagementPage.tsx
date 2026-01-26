@@ -286,7 +286,16 @@ export default function ManagementPage() {
   }
 
   // API Key actions
+  const MAX_ACTIVE_KEYS = 3
+  const activeKeyCount = apiKeys.filter(k => !k.revoked).length
+
   const handleCreateAPIKey = async () => {
+    // Check client-side first for better UX
+    if (activeKeyCount >= MAX_ACTIVE_KEYS) {
+      showError(`Maximum ${MAX_ACTIVE_KEYS} active API keys allowed. Please revoke an existing key before creating a new one.`)
+      return
+    }
+
     try {
       const expiresAt = new Date()
       expiresAt.setFullYear(expiresAt.getFullYear() + 1)
@@ -303,6 +312,11 @@ export default function ManagementPage() {
 
       if (!response.ok) {
         const data = await response.json()
+        // Handle max keys reached error specifically
+        if (data.error === 'max_keys_reached') {
+          showError(`Maximum ${data.max_keys || MAX_ACTIVE_KEYS} active API keys allowed. Please revoke an existing key before creating a new one.`)
+          return
+        }
         throw new Error(data.message || data.error || 'Failed to create API key')
       }
 
@@ -310,6 +324,7 @@ export default function ManagementPage() {
       setNewAPIKey(`${data.key_id}:${data.secret}`)
       setShowNewAPIKeyModal(true)
       fetchAPIKeys()
+      showSuccess('API key created successfully!')
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to create API key')
     }
@@ -574,8 +589,13 @@ export default function ManagementPage() {
           {/* API Keys Section */}
           <section className="management-section">
             <div className="section-header">
-              <h2>API Keys</h2>
-              <button className="btn btn-primary" onClick={handleCreateAPIKey}>
+              <h2>API Keys <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#666' }}>({activeKeyCount}/{MAX_ACTIVE_KEYS} active)</span></h2>
+              <button
+                className="btn btn-primary"
+                onClick={handleCreateAPIKey}
+                disabled={activeKeyCount >= MAX_ACTIVE_KEYS}
+                title={activeKeyCount >= MAX_ACTIVE_KEYS ? `Maximum ${MAX_ACTIVE_KEYS} active keys allowed` : 'Create a new API key'}
+              >
                 Create API Key
               </button>
             </div>
