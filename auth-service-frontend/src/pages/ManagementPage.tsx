@@ -474,9 +474,9 @@ export default function ManagementPage() {
                       console.log('Rendering row for:', user.id, user.name, user.email)
                       return (
                       <tr key={user.id} className={user.id === userId ? 'current-user' : ''}>
-                        <td>{user.name || user.email?.split('@')[0] || 'Unknown'}</td>
-                        <td>{user.email || 'No email'}</td>
-                      <td>
+                        <td style={{ color: '#213547' }}>{user.name || user.email?.split('@')[0] || 'Unknown'}</td>
+                        <td style={{ color: '#213547' }}>{user.email || 'No email'}</td>
+                        <td>
                         <span className={`role-badge role-badge-${user.role}`}>
                           {user.role}
                         </span>
