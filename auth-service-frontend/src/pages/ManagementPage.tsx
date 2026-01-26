@@ -594,7 +594,9 @@ export default function ManagementPage() {
                   {apiKeys.map((key) => (
                     <tr key={key.id} className={key.revoked ? 'revoked' : ''}>
                       <td style={{ color: '#213547' }}>
-                        <code style={{ color: '#213547', background: '#f5f5f5', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>{key.key_id}</code>
+                        <code style={{ color: '#213547', background: '#f5f5f5', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                          {'*'.repeat(Math.max(0, key.key_id.length - 4))}{key.key_id.slice(-4)}
+                        </code>
                       </td>
                       <td style={{ color: '#213547' }}>{new Date(key.created_at).toLocaleDateString()}</td>
                       <td style={{ color: '#213547' }}>
