@@ -599,6 +599,15 @@ export default function ManagementPage() {
                 Create API Key
               </button>
             </div>
+            {activeKeyCount >= MAX_ACTIVE_KEYS && (
+              <div className="warning-box" style={{ marginBottom: '1rem' }}>
+                <span className="warning-icon">!</span>
+                <p style={{ color: '#92400e' }}>
+                  <strong>Maximum API keys reached.</strong> You have {activeKeyCount} active keys (limit: {MAX_ACTIVE_KEYS}).
+                  Please revoke an existing key before creating a new one.
+                </p>
+              </div>
+            )}
             <div className="api-keys-table-container">
               <table className="api-keys-table">
                 <thead>
@@ -804,18 +813,18 @@ export default function ManagementPage() {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
-              <h2>API Key Created</h2>
+              <h2 style={{ color: '#213547' }}>API Key Created</h2>
             </div>
             <div className="modal-body">
               <div className="warning-box">
                 <span className="warning-icon">!</span>
-                <p>
+                <p style={{ color: '#92400e' }}>
                   <strong>Important:</strong> This is the only time you will see this API key.
                   Please copy and save it securely.
                 </p>
               </div>
               <div className="api-key-display">
-                <code>{newAPIKey}</code>
+                <code style={{ color: '#213547', background: '#f5f5f5' }}>{newAPIKey}</code>
                 <button className="btn btn-small btn-secondary" onClick={() => copyToClipboard(newAPIKey)}>
                   Copy
                 </button>
