@@ -644,7 +644,7 @@ export default function ManagementPage() {
                   <h2>Billing</h2>
                 </div>
                 <div className="billing-info">
-                  <p>
+                  <p style={{ color: '#213547' }}>
                     <strong>Current Plan:</strong>{' '}
                     <span className="plan-badge">{pricingPlan || 'Starter'}</span>
                   </p>
