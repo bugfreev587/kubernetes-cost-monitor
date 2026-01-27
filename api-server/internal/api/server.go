@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -40,6 +41,11 @@ func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, ti
 
 	// Initialize Clerk service for invitation emails
 	clerkSvc := services.NewClerkService(cfg.Clerk.SecretKey, cfg.Clerk.FrontendURL)
+	if clerkSvc.IsConfigured() {
+		log.Printf("Clerk service initialized successfully (secret key configured)")
+	} else {
+		log.Printf("WARNING: Clerk service not configured - CLERK_SECRET_KEY environment variable not set")
+	}
 
 	// Initialize RBAC middleware
 	rbacMiddleware := middleware.NewRBACMiddleware(postgresDB.GetPostgresDB())
