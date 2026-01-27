@@ -58,6 +58,14 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 				return
 			}
 
+			// Ensure Clerk user metadata is up to date (for Grafana OAuth integration)
+			if s.clerkSvc != nil && s.clerkSvc.IsConfigured() {
+				if err := s.clerkSvc.UpdateUserMetadata(c.Request.Context(), req.ClerkUserID, existingUser.TenantID, existingUser.Role); err != nil {
+					log.Printf("Warning: Failed to update Clerk user metadata: %v", err)
+					// Don't fail the sync, just log the warning
+				}
+			}
+
 			// Return user info
 			var tenant models.Tenant
 			db.First(&tenant, existingUser.TenantID)
@@ -106,6 +114,14 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 
 			log.Printf("Activated invited user: email=%s, tenant_id=%d, user_id=%s, role=%s",
 				pendingUser.Email, pendingUser.TenantID, pendingUser.ID, pendingUser.Role)
+
+			// Update Clerk user metadata for Grafana OAuth integration
+			if s.clerkSvc != nil && s.clerkSvc.IsConfigured() {
+				if err := s.clerkSvc.UpdateUserMetadata(c.Request.Context(), req.ClerkUserID, pendingUser.TenantID, pendingUser.Role); err != nil {
+					log.Printf("Warning: Failed to update Clerk user metadata: %v", err)
+					// Don't fail the sync, just log the warning
+				}
+			}
 
 			// Get tenant info
 			var tenant models.Tenant
@@ -158,6 +174,14 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 		}
 
 		log.Printf("Created new user (owner): email=%s, tenant_id=%d, user_id=%s", req.Email, tenant.ID, user.ID)
+
+		// Update Clerk user metadata for Grafana OAuth integration
+		if s.clerkSvc != nil && s.clerkSvc.IsConfigured() {
+			if err := s.clerkSvc.UpdateUserMetadata(c.Request.Context(), req.ClerkUserID, tenant.ID, user.Role); err != nil {
+				log.Printf("Warning: Failed to update Clerk user metadata: %v", err)
+				// Don't fail the sync, just log the warning
+			}
+		}
 
 		// Create a default API key for the new tenant
 		var apiKeyStr *string

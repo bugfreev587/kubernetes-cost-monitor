@@ -177,6 +177,56 @@ func (s *ClerkService) RevokeInvitation(ctx context.Context, invitationID string
 	return nil
 }
 
+// UpdateUserMetadata updates a user's public metadata in Clerk
+// This is required for Grafana OAuth integration to work properly
+func (s *ClerkService) UpdateUserMetadata(ctx context.Context, clerkUserID string, tenantID uint, role string) error {
+	if !s.IsConfigured() {
+		return fmt.Errorf("clerk is not configured (missing secret key)")
+	}
+
+	// Build the metadata to set
+	metadata := map[string]interface{}{
+		"tenant_id": tenantID,
+		"role":      role,
+		"roles":     []string{role}, // Grafana expects an array for role mapping
+	}
+
+	reqBody := map[string]interface{}{
+		"public_metadata": metadata,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal update request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "PATCH", clerkAPIBaseURL+"/users/"+clerkUserID, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+s.secretKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to send update request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		var clerkErr ClerkError
+		if err := json.Unmarshal(respBody, &clerkErr); err == nil && len(clerkErr.Errors) > 0 {
+			return fmt.Errorf("clerk API error: %s - %s", clerkErr.Errors[0].Code, clerkErr.Errors[0].Message)
+		}
+		return fmt.Errorf("failed to update user metadata: status=%d, body=%s", resp.StatusCode, string(respBody))
+	}
+
+	log.Printf("Updated Clerk user metadata: user_id=%s, tenant_id=%d, role=%s", clerkUserID, tenantID, role)
+	return nil
+}
+
 // ListInvitations lists all pending invitations
 func (s *ClerkService) ListInvitations(ctx context.Context, status string) ([]InvitationResponse, error) {
 	if !s.IsConfigured() {
