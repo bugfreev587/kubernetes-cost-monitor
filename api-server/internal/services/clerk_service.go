@@ -181,11 +181,14 @@ func (s *ClerkService) RevokeInvitation(ctx context.Context, invitationID string
 // This should be called when a user is removed from a tenant
 func (s *ClerkService) RevokeUserSessions(ctx context.Context, clerkUserID string) error {
 	if !s.IsConfigured() {
+		log.Printf("Clerk not configured, skipping session revocation for user %s", clerkUserID)
 		return fmt.Errorf("clerk is not configured (missing secret key)")
 	}
 
-	// First, get all sessions for the user
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", clerkAPIBaseURL+"/users/"+clerkUserID+"/sessions", nil)
+	log.Printf("Revoking sessions for user %s", clerkUserID)
+
+	// Get all sessions for the user using query parameter
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", clerkAPIBaseURL+"/sessions?user_id="+clerkUserID, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -198,21 +201,37 @@ func (s *ClerkService) RevokeUserSessions(ctx context.Context, clerkUserID strin
 	}
 	defer resp.Body.Close()
 
+	respBody, _ := io.ReadAll(resp.Body)
+
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
+		log.Printf("Failed to get sessions for user %s: status=%d, body=%s", clerkUserID, resp.StatusCode, string(respBody))
 		return fmt.Errorf("failed to get user sessions: status=%d, body=%s", resp.StatusCode, string(respBody))
 	}
 
-	// Parse sessions response
-	var sessions []struct {
-		ID string `json:"id"`
+	// Parse sessions response - Clerk returns { "data": [...], "total_count": N }
+	var sessionsResp struct {
+		Data []struct {
+			ID     string `json:"id"`
+			Status string `json:"status"`
+		} `json:"data"`
+		TotalCount int `json:"total_count"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&sessions); err != nil {
+	if err := json.Unmarshal(respBody, &sessionsResp); err != nil {
+		log.Printf("Failed to parse sessions response: %v, body: %s", err, string(respBody))
 		return fmt.Errorf("failed to parse sessions response: %w", err)
 	}
 
-	// Revoke each session
-	for _, session := range sessions {
+	log.Printf("Found %d sessions for user %s", len(sessionsResp.Data), clerkUserID)
+
+	// Revoke each active session
+	revokedCount := 0
+	for _, session := range sessionsResp.Data {
+		// Only revoke active sessions
+		if session.Status != "active" {
+			log.Printf("Skipping non-active session %s (status: %s)", session.ID, session.Status)
+			continue
+		}
+
 		revokeReq, err := http.NewRequestWithContext(ctx, "POST", clerkAPIBaseURL+"/sessions/"+session.ID+"/revoke", nil)
 		if err != nil {
 			log.Printf("Warning: Failed to create revoke request for session %s: %v", session.ID, err)
@@ -226,15 +245,20 @@ func (s *ClerkService) RevokeUserSessions(ctx context.Context, clerkUserID strin
 			log.Printf("Warning: Failed to revoke session %s: %v", session.ID, err)
 			continue
 		}
+
+		revokeBody, _ := io.ReadAll(revokeResp.Body)
 		revokeResp.Body.Close()
 
 		if revokeResp.StatusCode != http.StatusOK {
-			log.Printf("Warning: Failed to revoke session %s: status=%d", session.ID, revokeResp.StatusCode)
+			log.Printf("Warning: Failed to revoke session %s: status=%d, body=%s", session.ID, revokeResp.StatusCode, string(revokeBody))
 			continue
 		}
+
+		log.Printf("Revoked session %s for user %s", session.ID, clerkUserID)
+		revokedCount++
 	}
 
-	log.Printf("Revoked %d sessions for user %s", len(sessions), clerkUserID)
+	log.Printf("Successfully revoked %d sessions for user %s", revokedCount, clerkUserID)
 	return nil
 }
 
