@@ -63,10 +63,10 @@ type InvitationResponse struct {
 // ClerkError represents an error response from Clerk
 type ClerkError struct {
 	Errors []struct {
-		Code      string `json:"code"`
-		Message   string `json:"message"`
-		LongMsg   string `json:"long_message"`
-		Meta      map[string]interface{} `json:"meta,omitempty"`
+		Code    string                 `json:"code"`
+		Message string                 `json:"message"`
+		LongMsg string                 `json:"long_message"`
+		Meta    map[string]interface{} `json:"meta,omitempty"`
 	} `json:"errors"`
 }
 
@@ -208,24 +208,21 @@ func (s *ClerkService) RevokeUserSessions(ctx context.Context, clerkUserID strin
 		return fmt.Errorf("failed to get user sessions: status=%d, body=%s", resp.StatusCode, string(respBody))
 	}
 
-	// Parse sessions response - Clerk returns { "data": [...], "total_count": N }
-	var sessionsResp struct {
-		Data []struct {
-			ID     string `json:"id"`
-			Status string `json:"status"`
-		} `json:"data"`
-		TotalCount int `json:"total_count"`
+	// Parse sessions response - Clerk returns an array directly
+	var sessions []struct {
+		ID     string `json:"id"`
+		Status string `json:"status"`
 	}
-	if err := json.Unmarshal(respBody, &sessionsResp); err != nil {
+	if err := json.Unmarshal(respBody, &sessions); err != nil {
 		log.Printf("Failed to parse sessions response: %v, body: %s", err, string(respBody))
 		return fmt.Errorf("failed to parse sessions response: %w", err)
 	}
 
-	log.Printf("Found %d sessions for user %s", len(sessionsResp.Data), clerkUserID)
+	log.Printf("Found %d sessions for user %s", len(sessions), clerkUserID)
 
 	// Revoke each active session
 	revokedCount := 0
-	for _, session := range sessionsResp.Data {
+	for _, session := range sessions {
 		// Only revoke active sessions
 		if session.Status != "active" {
 			log.Printf("Skipping non-active session %s (status: %s)", session.ID, session.Status)
