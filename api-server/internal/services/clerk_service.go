@@ -177,6 +177,67 @@ func (s *ClerkService) RevokeInvitation(ctx context.Context, invitationID string
 	return nil
 }
 
+// RevokeUserSessions revokes all active sessions for a user, forcing them to log out
+// This should be called when a user is removed from a tenant
+func (s *ClerkService) RevokeUserSessions(ctx context.Context, clerkUserID string) error {
+	if !s.IsConfigured() {
+		return fmt.Errorf("clerk is not configured (missing secret key)")
+	}
+
+	// First, get all sessions for the user
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", clerkAPIBaseURL+"/users/"+clerkUserID+"/sessions", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+s.secretKey)
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to get sessions: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to get user sessions: status=%d, body=%s", resp.StatusCode, string(respBody))
+	}
+
+	// Parse sessions response
+	var sessions []struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&sessions); err != nil {
+		return fmt.Errorf("failed to parse sessions response: %w", err)
+	}
+
+	// Revoke each session
+	for _, session := range sessions {
+		revokeReq, err := http.NewRequestWithContext(ctx, "POST", clerkAPIBaseURL+"/sessions/"+session.ID+"/revoke", nil)
+		if err != nil {
+			log.Printf("Warning: Failed to create revoke request for session %s: %v", session.ID, err)
+			continue
+		}
+
+		revokeReq.Header.Set("Authorization", "Bearer "+s.secretKey)
+
+		revokeResp, err := s.httpClient.Do(revokeReq)
+		if err != nil {
+			log.Printf("Warning: Failed to revoke session %s: %v", session.ID, err)
+			continue
+		}
+		revokeResp.Body.Close()
+
+		if revokeResp.StatusCode != http.StatusOK {
+			log.Printf("Warning: Failed to revoke session %s: status=%d", session.ID, revokeResp.StatusCode)
+			continue
+		}
+	}
+
+	log.Printf("Revoked %d sessions for user %s", len(sessions), clerkUserID)
+	return nil
+}
+
 // UpdateUserMetadata updates a user's public metadata in Clerk
 // This is required for Grafana OAuth integration to work properly
 func (s *ClerkService) UpdateUserMetadata(ctx context.Context, clerkUserID string, tenantID uint, role string) error {

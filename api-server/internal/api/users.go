@@ -462,6 +462,15 @@ func (s *Server) removeUserHandler() gin.HandlerFunc {
 			return
 		}
 
+		// Revoke all Clerk sessions to force logout
+		// This prevents the removed user from accidentally creating a new tenant by refreshing
+		if s.clerkSvc != nil && s.clerkSvc.IsConfigured() {
+			if err := s.clerkSvc.RevokeUserSessions(c.Request.Context(), targetUser.ID); err != nil {
+				log.Printf("Warning: Failed to revoke Clerk sessions for user %s: %v", targetUser.Email, err)
+				// Don't fail the removal, just log the warning
+			}
+		}
+
 		log.Printf("User removed: %s by %s", targetUser.Email, currentUser.Email)
 
 		c.JSON(http.StatusOK, gin.H{"message": "User removed successfully"})
