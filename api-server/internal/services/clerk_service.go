@@ -309,6 +309,57 @@ func (s *ClerkService) UpdateUserMetadata(ctx context.Context, clerkUserID strin
 	return nil
 }
 
+// ClearUserMetadata removes tenant and role metadata from a user in Clerk
+// This should be called when a user is removed from a tenant to prevent
+// unauthorized access to Grafana via OAuth
+func (s *ClerkService) ClearUserMetadata(ctx context.Context, clerkUserID string) error {
+	if !s.IsConfigured() {
+		return fmt.Errorf("clerk is not configured (missing secret key)")
+	}
+
+	// Set metadata fields to null to clear them
+	metadata := map[string]interface{}{
+		"tenant_id": nil,
+		"role":      nil,
+		"roles":     nil,
+	}
+
+	reqBody := map[string]interface{}{
+		"public_metadata": metadata,
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal clear metadata request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "PATCH", clerkAPIBaseURL+"/users/"+clerkUserID, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+s.secretKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to send clear metadata request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		var clerkErr ClerkError
+		if err := json.Unmarshal(respBody, &clerkErr); err == nil && len(clerkErr.Errors) > 0 {
+			return fmt.Errorf("clerk API error: %s - %s", clerkErr.Errors[0].Code, clerkErr.Errors[0].Message)
+		}
+		return fmt.Errorf("failed to clear user metadata: status=%d, body=%s", resp.StatusCode, string(respBody))
+	}
+
+	log.Printf("Cleared Clerk user metadata: user_id=%s", clerkUserID)
+	return nil
+}
+
 // ListInvitations lists all pending invitations
 func (s *ClerkService) ListInvitations(ctx context.Context, status string) ([]InvitationResponse, error) {
 	if !s.IsConfigured() {

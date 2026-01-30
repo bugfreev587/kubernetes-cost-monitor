@@ -462,14 +462,20 @@ func (s *Server) removeUserHandler() gin.HandlerFunc {
 			return
 		}
 
-		// Revoke all Clerk sessions to force logout
-		// This prevents the removed user from accidentally creating a new tenant by refreshing
-		log.Printf("Attempting to revoke Clerk sessions for user %s (ID: %s)", targetUser.Email, targetUser.ID)
+		// Clear Clerk metadata and revoke sessions to prevent unauthorized access
+		// This is critical for Grafana OAuth - metadata contains tenant_id and role
+		log.Printf("Attempting to clear Clerk metadata and revoke sessions for user %s (ID: %s)", targetUser.Email, targetUser.ID)
 		if s.clerkSvc == nil {
-			log.Printf("Warning: clerkSvc is nil, cannot revoke sessions")
+			log.Printf("Warning: clerkSvc is nil, cannot clear metadata or revoke sessions")
 		} else if !s.clerkSvc.IsConfigured() {
-			log.Printf("Warning: clerkSvc is not configured (CLERK_SECRET_KEY not set), cannot revoke sessions")
+			log.Printf("Warning: clerkSvc is not configured (CLERK_SECRET_KEY not set), cannot clear metadata or revoke sessions")
 		} else {
+			// Clear metadata first to remove tenant/role association
+			if err := s.clerkSvc.ClearUserMetadata(c.Request.Context(), targetUser.ID); err != nil {
+				log.Printf("Warning: Failed to clear Clerk metadata for user %s: %v", targetUser.Email, err)
+				// Don't fail the removal, just log the warning
+			}
+			// Then revoke sessions to force logout
 			if err := s.clerkSvc.RevokeUserSessions(c.Request.Context(), targetUser.ID); err != nil {
 				log.Printf("Warning: Failed to revoke Clerk sessions for user %s: %v", targetUser.Email, err)
 				// Don't fail the removal, just log the warning
