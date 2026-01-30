@@ -21,10 +21,11 @@ type PricingPlan struct {
 }
 
 type Tenant struct {
-	ID          uint   `gorm:"primaryKey"`
-	Name        string
-	PricingPlan string `gorm:"column:pricing_plan;default:Starter"` // 'Starter', 'Premium', 'Business'
-	CreatedAt   time.Time
+	ID           uint   `gorm:"primaryKey"`
+	Name         string
+	PricingPlan  string `gorm:"column:pricing_plan;default:Starter"` // 'Starter', 'Premium', 'Business'
+	GrafanaOrgID int    `gorm:"column:grafana_org_id"`               // Grafana organization ID for OAuth mapping
+	CreatedAt    time.Time
 }
 
 type User struct {

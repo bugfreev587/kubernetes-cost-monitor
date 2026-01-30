@@ -261,16 +261,19 @@ func (s *ClerkService) RevokeUserSessions(ctx context.Context, clerkUserID strin
 
 // UpdateUserMetadata updates a user's public metadata in Clerk
 // This is required for Grafana OAuth integration to work properly
-func (s *ClerkService) UpdateUserMetadata(ctx context.Context, clerkUserID string, tenantID uint, role string) error {
+// grafanaOrgID should be the actual Grafana organization ID (not tenant_id)
+func (s *ClerkService) UpdateUserMetadata(ctx context.Context, clerkUserID string, tenantID uint, role string, grafanaOrgID int) error {
 	if !s.IsConfigured() {
 		return fmt.Errorf("clerk is not configured (missing secret key)")
 	}
 
 	// Build the metadata to set
+	// grafana_org_id is the actual Grafana org ID used for OAuth org mapping
 	metadata := map[string]interface{}{
-		"tenant_id": tenantID,
-		"role":      role,
-		"roles":     []string{role}, // Grafana expects an array for role mapping
+		"tenant_id":      tenantID,
+		"role":           role,
+		"roles":          []string{role}, // Grafana expects an array for role mapping
+		"grafana_org_id": grafanaOrgID,   // Actual Grafana org ID for org_attribute_path
 	}
 
 	reqBody := map[string]interface{}{
@@ -305,7 +308,7 @@ func (s *ClerkService) UpdateUserMetadata(ctx context.Context, clerkUserID strin
 		return fmt.Errorf("failed to update user metadata: status=%d, body=%s", resp.StatusCode, string(respBody))
 	}
 
-	log.Printf("Updated Clerk user metadata: user_id=%s, tenant_id=%d, role=%s", clerkUserID, tenantID, role)
+	log.Printf("Updated Clerk user metadata: user_id=%s, tenant_id=%d, role=%s, grafana_org_id=%d", clerkUserID, tenantID, role, grafanaOrgID)
 	return nil
 }
 

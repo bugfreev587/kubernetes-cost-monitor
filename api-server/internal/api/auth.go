@@ -58,17 +58,17 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 				return
 			}
 
+			// Get tenant info (needed for Grafana org ID and pricing plan)
+			var tenant models.Tenant
+			db.First(&tenant, existingUser.TenantID)
+
 			// Ensure Clerk user metadata is up to date (for Grafana OAuth integration)
 			if s.clerkSvc != nil && s.clerkSvc.IsConfigured() {
-				if err := s.clerkSvc.UpdateUserMetadata(c.Request.Context(), req.ClerkUserID, existingUser.TenantID, existingUser.Role); err != nil {
+				if err := s.clerkSvc.UpdateUserMetadata(c.Request.Context(), req.ClerkUserID, existingUser.TenantID, existingUser.Role, tenant.GrafanaOrgID); err != nil {
 					log.Printf("Warning: Failed to update Clerk user metadata: %v", err)
 					// Don't fail the sync, just log the warning
 				}
 			}
-
-			// Return user info
-			var tenant models.Tenant
-			db.First(&tenant, existingUser.TenantID)
 
 			c.JSON(http.StatusOK, SyncUserResponse{
 				UserID:      existingUser.ID,
@@ -115,17 +115,17 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			log.Printf("Activated invited user: email=%s, tenant_id=%d, user_id=%s, role=%s",
 				pendingUser.Email, pendingUser.TenantID, pendingUser.ID, pendingUser.Role)
 
+			// Get tenant info (needed for Grafana org ID and pricing plan)
+			var tenant models.Tenant
+			db.First(&tenant, pendingUser.TenantID)
+
 			// Update Clerk user metadata for Grafana OAuth integration
 			if s.clerkSvc != nil && s.clerkSvc.IsConfigured() {
-				if err := s.clerkSvc.UpdateUserMetadata(c.Request.Context(), req.ClerkUserID, pendingUser.TenantID, pendingUser.Role); err != nil {
+				if err := s.clerkSvc.UpdateUserMetadata(c.Request.Context(), req.ClerkUserID, pendingUser.TenantID, pendingUser.Role, tenant.GrafanaOrgID); err != nil {
 					log.Printf("Warning: Failed to update Clerk user metadata: %v", err)
 					// Don't fail the sync, just log the warning
 				}
 			}
-
-			// Get tenant info
-			var tenant models.Tenant
-			db.First(&tenant, pendingUser.TenantID)
 
 			c.JSON(http.StatusOK, SyncUserResponse{
 				UserID:      pendingUser.ID,
@@ -176,8 +176,9 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 		log.Printf("Created new user (owner): email=%s, tenant_id=%d, user_id=%s", req.Email, tenant.ID, user.ID)
 
 		// Update Clerk user metadata for Grafana OAuth integration
+		// Note: GrafanaOrgID will be 0 for new tenants until Grafana org is synced
 		if s.clerkSvc != nil && s.clerkSvc.IsConfigured() {
-			if err := s.clerkSvc.UpdateUserMetadata(c.Request.Context(), req.ClerkUserID, tenant.ID, user.Role); err != nil {
+			if err := s.clerkSvc.UpdateUserMetadata(c.Request.Context(), req.ClerkUserID, tenant.ID, user.Role, tenant.GrafanaOrgID); err != nil {
 				log.Printf("Warning: Failed to update Clerk user metadata: %v", err)
 				// Don't fail the sync, just log the warning
 			}

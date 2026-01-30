@@ -70,9 +70,9 @@ GF_AUTH_GENERIC_OAUTH_AUTO_ASSIGN_ORG_ROLE=Viewer
 GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_STRICT=false
 
 # === Organization Mapping (Multi-Tenant) ===
-# Maps users to Grafana organizations based on tenant_id
-GF_AUTH_GENERIC_OAUTH_ORG_ATTRIBUTE_PATH=public_metadata.tenant_id
-# Note: org_mapping must be set dynamically via Grafana API (see script in step 3)
+# Maps users to Grafana organizations based on grafana_org_id
+# IMPORTANT: Use grafana_org_id (not tenant_id) - this is the actual Grafana org ID
+GF_AUTH_GENERIC_OAUTH_ORG_ATTRIBUTE_PATH=public_metadata.grafana_org_id
 
 # === OAuth Settings ===
 GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP=true
@@ -101,13 +101,14 @@ GF_DATABASE_SSL_MODE=require  # For Railway/production
 
 ### 3.1 User Metadata Structure
 
-When a user signs up, their Clerk `public_metadata` should include:
+When a user signs up, their Clerk `public_metadata` is automatically set by the API server and includes:
 
 ```json
 {
-  "tenant_id": "123",
+  "tenant_id": 123,
+  "role": "viewer",
   "roles": ["viewer"],
-  "cluster_name": "production-cluster"
+  "grafana_org_id": 5
 }
 ```
 
@@ -163,9 +164,12 @@ In Grafana, after login:
    - Verify user has `public_metadata.roles` set in Clerk
    - Check JMESPath expression in `GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH`
 
-4. **User not assigned to organization**
+4. **User not assigned to organization / "User sync failed"**
    - Ensure Grafana organization exists for the tenant
-   - Run the sync script to create missing organizations
+   - Run the migration: `007_add_grafana_org_id.sql`
+   - Update the tenant's `grafana_org_id` in the database with the actual Grafana org ID
+   - Update Grafana env var: `GF_AUTH_GENERIC_OAUTH_ORG_ATTRIBUTE_PATH=public_metadata.grafana_org_id`
+   - Have the user sign out and sign back in to trigger metadata sync
 
 ### Debug Logs
 
