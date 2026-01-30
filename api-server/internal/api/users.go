@@ -278,6 +278,19 @@ func (s *Server) suspendUserHandler() gin.HandlerFunc {
 			return
 		}
 
+		// Clear Clerk metadata and revoke sessions to force logout and prevent Grafana access
+		log.Printf("Clearing Clerk metadata and revoking sessions for suspended user %s", targetUser.Email)
+		if s.clerkSvc != nil && s.clerkSvc.IsConfigured() {
+			// Clear metadata first to remove tenant/role association (prevents Grafana OAuth)
+			if err := s.clerkSvc.ClearUserMetadata(c.Request.Context(), targetUser.ID); err != nil {
+				log.Printf("Warning: Failed to clear Clerk metadata for suspended user %s: %v", targetUser.Email, err)
+			}
+			// Then revoke sessions to force logout
+			if err := s.clerkSvc.RevokeUserSessions(c.Request.Context(), targetUser.ID); err != nil {
+				log.Printf("Warning: Failed to revoke Clerk sessions for suspended user %s: %v", targetUser.Email, err)
+			}
+		}
+
 		log.Printf("User suspended: %s by %s", targetUser.Email, currentUser.Email)
 
 		c.JSON(http.StatusOK, gin.H{
@@ -317,6 +330,21 @@ func (s *Server) unsuspendUserHandler() gin.HandlerFunc {
 		if err := db.Save(&targetUser).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to unsuspend user"})
 			return
+		}
+
+		// Restore Clerk metadata so user can access Grafana again
+		if s.clerkSvc != nil && s.clerkSvc.IsConfigured() {
+			// Get tenant for Grafana org ID
+			var tenant models.Tenant
+			if err := db.First(&tenant, targetUser.TenantID).Error; err != nil {
+				log.Printf("Warning: Failed to get tenant for unsuspended user %s: %v", targetUser.Email, err)
+			} else {
+				if err := s.clerkSvc.UpdateUserMetadata(c.Request.Context(), targetUser.ID, targetUser.TenantID, targetUser.Role, tenant.GrafanaOrgID); err != nil {
+					log.Printf("Warning: Failed to restore Clerk metadata for unsuspended user %s: %v", targetUser.Email, err)
+				} else {
+					log.Printf("Restored Clerk metadata for unsuspended user %s", targetUser.Email)
+				}
+			}
 		}
 
 		log.Printf("User unsuspended: %s by %s", targetUser.Email, currentUser.Email)

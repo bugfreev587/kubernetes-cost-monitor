@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useClerk } from '@clerk/clerk-react'
 
 const API_SERVER_URL = import.meta.env.VITE_API_SERVER_URL || 'http://localhost:8080'
 
@@ -29,6 +29,7 @@ export function hasPermission(userRole: UserRole | null, requiredRole: UserRole)
 
 export function useUserSync(): UserSyncState {
   const { isSignedIn, isLoaded, user } = useUser()
+  const { signOut } = useClerk()
   const [state, setState] = useState<UserSyncState>({
     isSynced: false,
     isSyncing: false,
@@ -98,8 +99,17 @@ export function useUserSync(): UserSyncState {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
-          // Handle suspended user specifically
+          // Handle suspended user - sign them out immediately
           if (errorData.error === 'user_suspended') {
+            console.log('User is suspended, signing out...')
+            // Clear localStorage first
+            localStorage.removeItem('tenant_id')
+            localStorage.removeItem('user_id')
+            localStorage.removeItem('user_role')
+            localStorage.removeItem('user_status')
+            localStorage.removeItem('pricing_plan')
+            // Sign out from Clerk
+            await signOut()
             throw new Error('Your account has been suspended. Please contact your organization administrator.')
           }
           throw new Error(errorData.message || errorData.error || `HTTP ${response.status}`)
