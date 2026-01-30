@@ -24,6 +24,7 @@ type Server struct {
 	apiKeySvc           *services.APIKeyService
 	planSvc             *services.PlanService
 	clerkSvc            *services.ClerkService
+	grafanaSvc          *services.GrafanaService
 	clerkWebhookHandler *ClerkWebhookHandler
 	rbac                *middleware.RBACMiddleware
 	router              *gin.Engine
@@ -36,8 +37,17 @@ func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, ti
 
 	router := gin.New()
 
-	// Initialize Clerk webhook handler (grafanaService is nil for now)
-	clerkWebhookHandler := NewClerkWebhookHandler(postgresDB.GetPostgresDB(), nil)
+	// Initialize Grafana service for multi-tenant org management
+	var grafanaSvc *services.GrafanaService
+	if cfg.Grafana.URL != "" {
+		grafanaSvc = services.NewGrafanaService(cfg.Grafana.URL, cfg.Grafana.APIToken, cfg.Grafana.Username, cfg.Grafana.Password)
+		log.Printf("Grafana service initialized: %s", cfg.Grafana.URL)
+	} else {
+		log.Printf("WARNING: Grafana service not configured - GRAFANA_URL environment variable not set")
+	}
+
+	// Initialize Clerk webhook handler with Grafana service
+	clerkWebhookHandler := NewClerkWebhookHandler(postgresDB.GetPostgresDB(), grafanaSvc)
 
 	// Initialize Clerk service for invitation emails
 	clerkSvc := services.NewClerkService(cfg.Clerk.SecretKey, cfg.Clerk.FrontendURL)
@@ -58,6 +68,7 @@ func NewServer(cfg *config.Config, postgresDB app_interfaces.PostgresService, ti
 		apiKeySvc:           apiKeySvc,
 		planSvc:             planSvc,
 		clerkSvc:            clerkSvc,
+		grafanaSvc:          grafanaSvc,
 		clerkWebhookHandler: clerkWebhookHandler,
 		rbac:                rbacMiddleware,
 		router:              router,

@@ -154,6 +154,22 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			return
 		}
 
+		// Create Grafana organization for the new tenant
+		if s.grafanaSvc != nil {
+			grafanaOrgID, err := s.grafanaSvc.CreateOrgForTenant(c.Request.Context(), tenant.ID, tenant.Name)
+			if err != nil {
+				log.Printf("Warning: Failed to create Grafana org for tenant %d: %v", tenant.ID, err)
+				// Don't fail tenant creation, Grafana org can be synced later
+			} else {
+				tenant.GrafanaOrgID = grafanaOrgID
+				if err := db.Save(&tenant).Error; err != nil {
+					log.Printf("Warning: Failed to save Grafana org ID for tenant %d: %v", tenant.ID, err)
+				} else {
+					log.Printf("Created Grafana org %d for tenant %d", grafanaOrgID, tenant.ID)
+				}
+			}
+		}
+
 		// Create user with Clerk ID as the primary key (first user is owner)
 		user := models.User{
 			ID:        req.ClerkUserID, // Use Clerk ID as primary key
@@ -167,7 +183,12 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 
 		if err := db.Create(&user).Error; err != nil {
 			log.Printf("Failed to create user: %v", err)
-			// Rollback tenant creation
+			// Rollback tenant creation (and Grafana org if created)
+			if s.grafanaSvc != nil && tenant.GrafanaOrgID != 0 {
+				if delErr := s.grafanaSvc.DeleteOrg(c.Request.Context(), tenant.GrafanaOrgID); delErr != nil {
+					log.Printf("Warning: Failed to rollback Grafana org %d: %v", tenant.GrafanaOrgID, delErr)
+				}
+			}
 			db.Delete(&tenant)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to create user: %v", err)})
 			return
@@ -176,7 +197,6 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 		log.Printf("Created new user (owner): email=%s, tenant_id=%d, user_id=%s", req.Email, tenant.ID, user.ID)
 
 		// Update Clerk user metadata for Grafana OAuth integration
-		// Note: GrafanaOrgID will be 0 for new tenants until Grafana org is synced
 		if s.clerkSvc != nil && s.clerkSvc.IsConfigured() {
 			if err := s.clerkSvc.UpdateUserMetadata(c.Request.Context(), req.ClerkUserID, tenant.ID, user.Role, tenant.GrafanaOrgID); err != nil {
 				log.Printf("Warning: Failed to update Clerk user metadata: %v", err)

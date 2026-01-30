@@ -712,6 +712,16 @@ func (s *Server) deleteTenantHandler() gin.HandlerFunc {
 			return
 		}
 
+		// Delete associated Grafana organization
+		if s.grafanaSvc != nil && tenant.GrafanaOrgID != 0 {
+			if err := s.grafanaSvc.DeleteOrg(c.Request.Context(), tenant.GrafanaOrgID); err != nil {
+				log.Printf("Warning: Failed to delete Grafana org %d for tenant %d: %v", tenant.GrafanaOrgID, tenantID, err)
+				// Don't fail tenant deletion, just log the warning
+			} else {
+				log.Printf("Deleted Grafana org %d for tenant %d", tenant.GrafanaOrgID, tenantID)
+			}
+		}
+
 		if err := db.Delete(&tenant).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete tenant"})
 			return

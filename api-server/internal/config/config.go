@@ -45,6 +45,13 @@ type ClerkCfg struct {
 	FrontendURL string `mapstructure:"frontend_url" yaml:"frontend_url"` // Frontend URL for invitation redirect
 }
 
+type GrafanaCfg struct {
+	URL      string `mapstructure:"url" yaml:"url"`           // Grafana base URL
+	Username string `mapstructure:"username" yaml:"username"` // Admin username
+	Password string `mapstructure:"password" yaml:"password"` // Admin password
+	APIToken string `mapstructure:"api_token" yaml:"api_token"` // API token (alternative to username/password)
+}
+
 type Config struct {
 	Environment string      `mapstructure:"environment"`
 	Server      ServerCfg   `mapstructure:"server"`
@@ -55,6 +62,7 @@ type Config struct {
 	Ingest      IngestCfg   `mapstructure:"ingest"`
 	Agent       AgentCfg    `mapstructure:"agent"`
 	Clerk       ClerkCfg    `mapstructure:"clerk" yaml:"clerk"`
+	Grafana     GrafanaCfg  `mapstructure:"grafana" yaml:"grafana"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -101,5 +109,19 @@ func applyEnvOverrides(cfg *Config) {
 	// API key pepper - sensitive, should come from env
 	if apiKeyPepper := os.Getenv("API_KEY_PEPPER"); apiKeyPepper != "" {
 		cfg.Security.APIKeyPepper = apiKeyPepper
+	}
+
+	// Grafana config - sensitive, should come from env
+	if grafanaURL := os.Getenv("GRAFANA_URL"); grafanaURL != "" {
+		cfg.Grafana.URL = grafanaURL
+	}
+	if grafanaUsername := os.Getenv("GRAFANA_USERNAME"); grafanaUsername != "" {
+		cfg.Grafana.Username = grafanaUsername
+	}
+	if grafanaPassword := os.Getenv("GRAFANA_PASSWORD"); grafanaPassword != "" {
+		cfg.Grafana.Password = grafanaPassword
+	}
+	if grafanaAPIToken := os.Getenv("GRAFANA_API_TOKEN"); grafanaAPIToken != "" {
+		cfg.Grafana.APIToken = grafanaAPIToken
 	}
 }

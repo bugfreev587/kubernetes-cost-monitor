@@ -55,6 +55,11 @@ func NewGrafanaService(baseURL, apiToken, username, password string) *GrafanaSer
 	}
 }
 
+// IsConfigured returns true if Grafana service has valid credentials
+func (s *GrafanaService) IsConfigured() bool {
+	return s.baseURL != "" && (s.apiToken != "" || (s.username != "" && s.password != ""))
+}
+
 // request makes an authenticated request to Grafana API
 func (s *GrafanaService) request(ctx context.Context, method, path string, body interface{}) ([]byte, error) {
 	var reqBody io.Reader
