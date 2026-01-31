@@ -82,8 +82,19 @@ The system implements a hierarchical role-based access control (RBAC) system:
 
 Users can have the following status:
 - **active**: Normal access based on role
-- **suspended**: Account temporarily disabled, cannot log in
+- **suspended**: Account temporarily disabled, cannot log in. When suspended:
+  - All Clerk sessions are revoked (forced logout from all devices)
+  - Clerk metadata is cleared (prevents Grafana OAuth access)
+  - User cannot sign in until unsuspended
 - **pending**: Invited but not yet signed up
+
+### User Removal
+
+When a user is removed from a tenant:
+- User record is deleted from database
+- Clerk metadata is cleared (tenant_id, role, grafana_org_id)
+- All Clerk sessions are revoked (forced logout)
+- User cannot access Grafana via OAuth for the removed tenant
 
 ## Quick Start
 
@@ -254,6 +265,25 @@ Environment variables (prefix `AGENT_`):
 
 Environment variables:
 - `VITE_CLERK_PUBLISHABLE_KEY` - Clerk authentication key
+- `VITE_API_SERVER_URL` - API server URL (default: http://localhost:8080)
+
+### API Server Additional Environment Variables
+
+```bash
+# Clerk (for user management and invitations)
+CLERK_SECRET_KEY=<clerk-secret-key>
+CLERK_FRONTEND_URL=https://your-frontend.vercel.app
+
+# Grafana (for automatic org management)
+GRAFANA_URL=https://your-grafana.railway.app
+GRAFANA_USERNAME=admin
+GRAFANA_PASSWORD=<admin-password>
+# Or use API token:
+GRAFANA_API_TOKEN=<service-account-token>
+
+# Security
+API_KEY_PEPPER=<random-secret-for-api-key-hashing>
+```
 
 ## Deployment
 
@@ -287,12 +317,50 @@ The API server integrates with Grafana for visualization with automatic tenant i
 2. Configure row-level security in TimescaleDB
 3. Users logging in via Clerk are automatically assigned to their tenant's Grafana organization
 
-See `docs/GRAFANA_SETUP_QUICKSTART.md` for detailed setup instructions.
+#### Automatic Grafana Organization Management
+
+When properly configured, the API server automatically manages Grafana organizations:
+
+- **New tenant created** → Grafana organization is automatically created
+- **Tenant deleted** → Associated Grafana organization is deleted
+- **User metadata** → Clerk stores `grafana_org_id` for OAuth org mapping
+
+#### Grafana Environment Variables (API Server)
+
+```bash
+GRAFANA_URL=https://your-grafana.railway.app
+GRAFANA_USERNAME=admin
+GRAFANA_PASSWORD=<admin-password>
+# Or use API token instead of username/password:
+GRAFANA_API_TOKEN=<service-account-token>
+```
+
+#### Grafana OAuth Configuration
+
+Set these on your Grafana service:
+
+```bash
+GF_AUTH_GENERIC_OAUTH_ENABLED=true
+GF_AUTH_GENERIC_OAUTH_NAME=Clerk
+GF_AUTH_GENERIC_OAUTH_CLIENT_ID=<clerk-oauth-client-id>
+GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET=<clerk-oauth-client-secret>
+GF_AUTH_GENERIC_OAUTH_SCOPES=openid profile email public_metadata
+GF_AUTH_GENERIC_OAUTH_AUTH_URL=https://<clerk-domain>/oauth/authorize
+GF_AUTH_GENERIC_OAUTH_TOKEN_URL=https://<clerk-domain>/oauth/token
+GF_AUTH_GENERIC_OAUTH_API_URL=https://<clerk-domain>/oauth/userinfo
+GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH=contains(public_metadata.roles[*], 'admin') && 'Admin' || contains(public_metadata.roles[*], 'editor') && 'Editor' || 'Viewer'
+GF_AUTH_GENERIC_OAUTH_ORG_ATTRIBUTE_PATH=public_metadata.grafana_org_id
+GF_AUTH_GENERIC_OAUTH_ORG_MAPPING=<grafana_org_id>:<grafana_org_id>
+GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP=true
+```
+
+See `docs/grafana-clerk-oauth-setup.md` for detailed setup instructions.
 
 ## Documentation
 
 Additional documentation in the `docs/` directory:
 - `GRAFANA_SETUP_QUICKSTART.md` - Grafana multi-tenant setup guide
+- `grafana-clerk-oauth-setup.md` - Grafana + Clerk OAuth integration
 - `DEPLOYMENT_QUICKSTART.md` - Quick deployment guide
 - `multi-tenant-setup-guide.md` - Complete multi-tenant architecture
 
