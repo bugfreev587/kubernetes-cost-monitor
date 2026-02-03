@@ -46,9 +46,22 @@ export function usePricingPlan(): PricingPlanStatus {
       setIsLoading(true)
       setError(null)
 
+      // Get user_id from localStorage for authentication
+      const userId = localStorage.getItem('user_id')
+      if (!userId) {
+        // User not synced yet, can't make authenticated request
+        setIsLoading(false)
+        setHasPlan(false)
+        return
+      }
+
       try {
-        const response = await fetch(`${API_SERVER_URL}/v1/admin/tenants/${tenantId}/pricing-plan`)
-        
+        const response = await fetch(`${API_SERVER_URL}/v1/admin/tenants/${tenantId}/pricing-plan`, {
+          headers: {
+            'X-User-ID': userId,
+          },
+        })
+
         if (!response.ok) {
           if (response.status === 404) {
             setHasPlan(false)
