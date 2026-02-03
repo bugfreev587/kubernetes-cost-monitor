@@ -78,6 +78,7 @@ export default function PricingPage() {
   const { userId, tenantId, role, isSynced } = useUserSync()
   const [isSelecting, setIsSelecting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   const isOwner = role === 'owner'
 
@@ -131,8 +132,14 @@ export default function PricingPage() {
       localStorage.setItem('selected_pricing_plan', planName)
       localStorage.setItem('pricing_plan', planName)
 
-      // Navigate to dashboard
-      navigate('/dashboard')
+      // Show success message
+      setSuccess(`Successfully upgraded to ${planName} plan!`)
+      setIsSelecting(null)
+
+      // Navigate to dashboard after a short delay
+      setTimeout(() => {
+        navigate('/dashboard')
+      }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
       console.error('Error updating pricing plan:', err)
@@ -193,12 +200,26 @@ export default function PricingPage() {
             ))}
           </div>
 
+          {success && (
+            <div style={{
+              marginTop: '2rem',
+              padding: '1rem',
+              background: '#d4edda',
+              color: '#155724',
+              borderRadius: '8px',
+              textAlign: 'center',
+              fontWeight: 'bold'
+            }}>
+              {success}
+            </div>
+          )}
+
           {error && (
-            <div style={{ 
-              marginTop: '2rem', 
-              padding: '1rem', 
-              background: '#fee', 
-              color: '#c82333', 
+            <div style={{
+              marginTop: '2rem',
+              padding: '1rem',
+              background: '#fee',
+              color: '#c82333',
               borderRadius: '8px',
               textAlign: 'center'
             }}>
