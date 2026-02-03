@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import Navbar from '../components/Navbar'
+import { useUserSync } from '../hooks/useUserSync'
 import '../App.css'
 
 interface PricingPlan {
@@ -74,23 +75,41 @@ const API_SERVER_URL = import.meta.env.VITE_API_SERVER_URL || 'http://localhost:
 export default function PricingPage() {
   const navigate = useNavigate()
   const { isSignedIn } = useAuth()
+  const { userId, tenantId, role, isSynced } = useUserSync()
   const [isSelecting, setIsSelecting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const isOwner = role === 'owner'
+
   const handlePlanSelection = async (planName: string) => {
+    // If not signed in, navigate to sign-up
+    if (!isSignedIn) {
+      localStorage.setItem('selected_pricing_plan', planName)
+      navigate('/sign-up')
+      return
+    }
+
+    // Only owners can change the pricing plan
+    if (!isOwner) {
+      setError('Only the tenant owner can change the pricing plan')
+      return
+    }
+
+    if (!isSynced || !tenantId || !userId) {
+      setError('Please wait for user sync to complete')
+      return
+    }
+
     setIsSelecting(planName)
     setError(null)
 
     try {
-      // TODO: Get tenant_id from user metadata once tenant assignment is implemented
-      // For now, using default tenant_id of 1
-      const tenantId = 1
-
-      // Update pricing plan in the database
-      const response = await fetch(`${API_SERVER_URL}/v1/admin/tenants/${tenantId}/pricing-plan`, {
+      // Update pricing plan - owner only endpoint
+      const response = await fetch(`${API_SERVER_URL}/v1/owner/tenants/${tenantId}/pricing-plan`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'X-User-ID': userId,
         },
         body: JSON.stringify({
           pricing_plan: planName,
@@ -101,7 +120,7 @@ export default function PricingPage() {
         let errorMessage = 'Failed to update pricing plan'
         try {
           const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
+          errorMessage = errorData.message || errorData.error || errorMessage
         } catch {
           errorMessage = `HTTP ${response.status}: ${response.statusText}`
         }
@@ -110,14 +129,10 @@ export default function PricingPage() {
 
       // Store the selected plan in localStorage
       localStorage.setItem('selected_pricing_plan', planName)
+      localStorage.setItem('pricing_plan', planName)
 
-      // If user is signed in, navigate to dashboard
-      // If not signed in, navigate to sign-up (they'll be redirected to dashboard after sign-up)
-      if (isSignedIn) {
-        navigate('/dashboard')
-      } else {
-        navigate('/sign-up')
-      }
+      // Navigate to dashboard
+      navigate('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
       console.error('Error updating pricing plan:', err)
