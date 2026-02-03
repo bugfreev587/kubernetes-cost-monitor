@@ -75,14 +75,20 @@ const API_SERVER_URL = import.meta.env.VITE_API_SERVER_URL || 'http://localhost:
 export default function PricingPage() {
   const navigate = useNavigate()
   const { isSignedIn } = useAuth()
-  const { userId, tenantId, role, isSynced } = useUserSync()
+  const { userId, tenantId, role, pricingPlan, isSynced } = useUserSync()
   const [isSelecting, setIsSelecting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
 
   const isOwner = role === 'owner'
 
   const handlePlanSelection = async (planName: string) => {
+    // Clear previous messages
+    setError(null)
+    setSuccess(null)
+    setInfo(null)
+
     // If not signed in, navigate to sign-up
     if (!isSignedIn) {
       localStorage.setItem('selected_pricing_plan', planName)
@@ -101,8 +107,13 @@ export default function PricingPage() {
       return
     }
 
+    // Check if already on this plan
+    if (pricingPlan === planName) {
+      setInfo(`You are already on the ${planName} plan`)
+      return
+    }
+
     setIsSelecting(planName)
-    setError(null)
 
     try {
       // Update pricing plan - owner only endpoint
@@ -211,6 +222,19 @@ export default function PricingPage() {
               fontWeight: 'bold'
             }}>
               {success}
+            </div>
+          )}
+
+          {info && (
+            <div style={{
+              marginTop: '2rem',
+              padding: '1rem',
+              background: '#cce5ff',
+              color: '#004085',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              {info}
             </div>
           )}
 
