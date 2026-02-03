@@ -779,29 +779,43 @@ func (s *Server) listAPIKeysHandler() gin.HandlerFunc {
 		}
 
 		type APIKeyResponse struct {
-			ID        uint       `json:"id"`
-			KeyID     string     `json:"key_id"`
-			Scopes    []string   `json:"scopes"`
-			Revoked   bool       `json:"revoked"`
-			ExpiresAt *time.Time `json:"expires_at"`
-			CreatedAt time.Time  `json:"created_at"`
+			ID          uint       `json:"id"`
+			KeyID       string     `json:"key_id"`
+			ClusterName string     `json:"cluster_name"`
+			Scopes      []string   `json:"scopes"`
+			Revoked     bool       `json:"revoked"`
+			ExpiresAt   *time.Time `json:"expires_at"`
+			CreatedAt   time.Time  `json:"created_at"`
 		}
 
 		response := make([]APIKeyResponse, len(apiKeys))
+		activeCount := 0
 		for i, key := range apiKeys {
 			response[i] = APIKeyResponse{
-				ID:        key.ID,
-				KeyID:     key.KeyID,
-				Scopes:    key.Scopes,
-				Revoked:   key.Revoked,
-				ExpiresAt: key.ExpiresAt,
-				CreatedAt: key.CreatedAt,
+				ID:          key.ID,
+				KeyID:       key.KeyID,
+				ClusterName: key.ClusterName,
+				Scopes:      key.Scopes,
+				Revoked:     key.Revoked,
+				ExpiresAt:   key.ExpiresAt,
+				CreatedAt:   key.CreatedAt,
+			}
+			if !key.Revoked {
+				activeCount++
 			}
 		}
 
+		// Get plan limits for cluster_limit info
+		var clusterLimit int = 1 // Default to Starter
+		if planLimits, err := s.planSvc.GetTenantPlanLimits(c.Request.Context(), currentUser.TenantID); err == nil {
+			clusterLimit = planLimits.ClusterLimit
+		}
+
 		c.JSON(http.StatusOK, gin.H{
-			"api_keys": response,
-			"total":    len(response),
+			"api_keys":      response,
+			"total":         len(response),
+			"active_count":  activeCount,
+			"cluster_limit": clusterLimit,
 		})
 	}
 }

@@ -81,15 +81,16 @@ func (u *User) IsActive() bool {
 }
 
 type APIKey struct {
-	ID         uint `gorm:"primaryKey"`
-	TenantID   uint
-	KeyID      string `gorm:"uniqueIndex;size:36"`
-	Salt       []byte
-	SecretHash []byte
-	Scopes     pq.StringArray `gorm:"type:text[]"`
-	Revoked    bool
-	ExpiresAt  *time.Time
-	CreatedAt  time.Time
+	ID          uint `gorm:"primaryKey"`
+	TenantID    uint
+	KeyID       string `gorm:"uniqueIndex;size:36"`
+	ClusterName string `gorm:"column:cluster_name"` // Each API key is for one cluster
+	Salt        []byte
+	SecretHash  []byte
+	Scopes      pq.StringArray `gorm:"type:text[]"`
+	Revoked     bool
+	ExpiresAt   *time.Time
+	CreatedAt   time.Time
 }
 
 type Recommendation struct {

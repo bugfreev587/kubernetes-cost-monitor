@@ -27,13 +27,14 @@ type APIKeyService struct {
 
 // APIKeyCacheData stores API key metadata in Redis cache (without the secret)
 type APIKeyCacheData struct {
-	KeyID      string     `json:"key_id"`
-	TenantID   uint       `json:"tenant_id"`
-	Revoked    bool       `json:"revoked"`
-	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
-	Scopes     []string   `json:"scopes"`
-	Salt       string     `json:"salt"`        // base64 encoded
-	SecretHash string     `json:"secret_hash"` // base64 encoded
+	KeyID       string     `json:"key_id"`
+	TenantID    uint       `json:"tenant_id"`
+	ClusterName string     `json:"cluster_name"`
+	Revoked     bool       `json:"revoked"`
+	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+	Scopes      []string   `json:"scopes"`
+	Salt        string     `json:"salt"`        // base64 encoded
+	SecretHash  string     `json:"secret_hash"` // base64 encoded
 }
 
 func NewAPIKeyService(db *gorm.DB, pepper []byte, cache *redis.Client, ttl time.Duration) *APIKeyService {
@@ -46,7 +47,8 @@ func NewAPIKeyService(db *gorm.DB, pepper []byte, cache *redis.Client, ttl time.
 }
 
 // CreateKey returns keyID and secret (secret shown once)
-func (s *APIKeyService) CreateKey(ctx context.Context, tenantID uint, scopes []string, expiresAt *time.Time) (string, string, error) {
+// clusterName is the name of the cluster this API key is for (1 key = 1 cluster)
+func (s *APIKeyService) CreateKey(ctx context.Context, tenantID uint, clusterName string, scopes []string, expiresAt *time.Time) (string, string, error) {
 	// generate secret
 	sec := make([]byte, 32)
 	if _, err := rand.Read(sec); err != nil {
@@ -66,13 +68,14 @@ func (s *APIKeyService) CreateKey(ctx context.Context, tenantID uint, scopes []s
 
 	kid := uuid.New().String()
 	ak := models.APIKey{
-		TenantID:   tenantID,
-		KeyID:      kid,
-		Salt:       salt,
-		SecretHash: hash,
-		Scopes:     scopes,
-		Revoked:    false,
-		ExpiresAt:  expiresAt,
+		TenantID:    tenantID,
+		KeyID:       kid,
+		ClusterName: clusterName,
+		Salt:        salt,
+		SecretHash:  hash,
+		Scopes:      scopes,
+		Revoked:     false,
+		ExpiresAt:   expiresAt,
 	}
 	if err := s.db.Create(&ak).Error; err != nil {
 		return "", "", err
@@ -80,13 +83,14 @@ func (s *APIKeyService) CreateKey(ctx context.Context, tenantID uint, scopes []s
 	// cache metadata (not secret)
 	if s.cache != nil {
 		cacheData := APIKeyCacheData{
-			KeyID:      ak.KeyID,
-			TenantID:   ak.TenantID,
-			Revoked:    ak.Revoked,
-			ExpiresAt:  ak.ExpiresAt,
-			Scopes:     ak.Scopes,
-			Salt:       base64.StdEncoding.EncodeToString(ak.Salt),
-			SecretHash: base64.StdEncoding.EncodeToString(ak.SecretHash),
+			KeyID:       ak.KeyID,
+			TenantID:    ak.TenantID,
+			ClusterName: ak.ClusterName,
+			Revoked:     ak.Revoked,
+			ExpiresAt:   ak.ExpiresAt,
+			Scopes:      ak.Scopes,
+			Salt:        base64.StdEncoding.EncodeToString(ak.Salt),
+			SecretHash:  base64.StdEncoding.EncodeToString(ak.SecretHash),
 		}
 		cacheJSON, err := json.Marshal(cacheData)
 		if err == nil {
@@ -155,14 +159,15 @@ func (s *APIKeyService) ValidateKey(ctx context.Context, presentedKey string) (*
 
 				// Validation successful - reconstruct APIKey from cache
 				ak = models.APIKey{
-					ID:         0, // Not needed for validation
-					TenantID:   cacheData.TenantID,
-					KeyID:      cacheData.KeyID,
-					Salt:       salt,
-					SecretHash: secretHash,
-					Scopes:     cacheData.Scopes,
-					Revoked:    cacheData.Revoked,
-					ExpiresAt:  cacheData.ExpiresAt,
+					ID:          0, // Not needed for validation
+					TenantID:    cacheData.TenantID,
+					KeyID:       cacheData.KeyID,
+					ClusterName: cacheData.ClusterName,
+					Salt:        salt,
+					SecretHash:  secretHash,
+					Scopes:      cacheData.Scopes,
+					Revoked:     cacheData.Revoked,
+					ExpiresAt:   cacheData.ExpiresAt,
 				}
 				return &ak, nil
 			}
@@ -201,13 +206,14 @@ dbLookup:
 	// Update cache with fresh data from DB
 	if s.cache != nil {
 		cacheData := APIKeyCacheData{
-			KeyID:      ak.KeyID,
-			TenantID:   ak.TenantID,
-			Revoked:    ak.Revoked,
-			ExpiresAt:  ak.ExpiresAt,
-			Scopes:     ak.Scopes,
-			Salt:       base64.StdEncoding.EncodeToString(ak.Salt),
-			SecretHash: base64.StdEncoding.EncodeToString(ak.SecretHash),
+			KeyID:       ak.KeyID,
+			TenantID:    ak.TenantID,
+			ClusterName: ak.ClusterName,
+			Revoked:     ak.Revoked,
+			ExpiresAt:   ak.ExpiresAt,
+			Scopes:      ak.Scopes,
+			Salt:        base64.StdEncoding.EncodeToString(ak.Salt),
+			SecretHash:  base64.StdEncoding.EncodeToString(ak.SecretHash),
 		}
 		cacheJSON, err := json.Marshal(cacheData)
 		if err == nil {

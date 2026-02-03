@@ -20,6 +20,7 @@ interface User {
 interface APIKey {
   id: number
   key_id: string
+  cluster_name: string
   scopes: string[]
   revoked: boolean
   expires_at: string | null
@@ -41,7 +42,10 @@ export default function ManagementPage() {
   const [showTransferModal, setShowTransferModal] = useState(false)
   const [showDeleteTenantModal, setShowDeleteTenantModal] = useState(false)
   const [showNewAPIKeyModal, setShowNewAPIKeyModal] = useState(false)
+  const [showCreateAPIKeyModal, setShowCreateAPIKeyModal] = useState(false)
   const [newAPIKey, setNewAPIKey] = useState<string | null>(null)
+  const [newClusterName, setNewClusterName] = useState('')
+  const [clusterLimit, setClusterLimit] = useState<number>(1)
 
   // Form states
   const [inviteEmail, setInviteEmail] = useState('')
@@ -102,6 +106,9 @@ export default function ManagementPage() {
       if (response.ok) {
         const data = await response.json()
         setApiKeys(data.api_keys || [])
+        if (data.cluster_limit !== undefined) {
+          setClusterLimit(data.cluster_limit)
+        }
       }
     } catch (err) {
       console.error('Failed to fetch API keys:', err)
@@ -286,13 +293,21 @@ export default function ManagementPage() {
   }
 
   // API Key actions
-  const MAX_ACTIVE_KEYS = 3
   const activeKeyCount = apiKeys.filter(k => !k.revoked).length
 
-  const handleCreateAPIKey = async () => {
+  const openCreateAPIKeyModal = () => {
     // Check client-side first for better UX
-    if (activeKeyCount >= MAX_ACTIVE_KEYS) {
-      showError(`Maximum ${MAX_ACTIVE_KEYS} active API keys allowed. Please revoke an existing key before creating a new one.`)
+    if (clusterLimit !== -1 && activeKeyCount >= clusterLimit) {
+      showError(`You have reached the maximum of ${clusterLimit} clusters for your plan. Please upgrade your plan or revoke an existing API key.`)
+      return
+    }
+    setNewClusterName('')
+    setShowCreateAPIKeyModal(true)
+  }
+
+  const handleCreateAPIKey = async () => {
+    if (!newClusterName.trim()) {
+      showError('Please enter a cluster name')
       return
     }
 
@@ -304,7 +319,7 @@ export default function ManagementPage() {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({
-          tenant_id: tenantId,
+          cluster_name: newClusterName.trim(),
           scopes: ['*'],
           expires_at: expiresAt.toISOString(),
         }),
@@ -312,9 +327,14 @@ export default function ManagementPage() {
 
       if (!response.ok) {
         const data = await response.json()
-        // Handle max keys reached error specifically
-        if (data.error === 'max_keys_reached') {
-          showError(`Maximum ${data.max_keys || MAX_ACTIVE_KEYS} active API keys allowed. Please revoke an existing key before creating a new one.`)
+        // Handle specific error types
+        if (data.error === 'cluster_limit_reached') {
+          showError(`You have reached the maximum of ${data.cluster_limit} clusters for your ${data.plan} plan. Please upgrade your plan or revoke an existing API key.`)
+          setShowCreateAPIKeyModal(false)
+          return
+        }
+        if (data.error === 'cluster_name_exists') {
+          showError(`An API key for cluster "${data.cluster_name}" already exists. Please use a different name or revoke the existing key.`)
           return
         }
         throw new Error(data.message || data.error || 'Failed to create API key')
@@ -322,9 +342,10 @@ export default function ManagementPage() {
 
       const data = await response.json()
       setNewAPIKey(`${data.key_id}:${data.secret}`)
+      setShowCreateAPIKeyModal(false)
       setShowNewAPIKeyModal(true)
       fetchAPIKeys()
-      showSuccess('API key created successfully!')
+      showSuccess(`API key created for cluster "${data.cluster_name}"!`)
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to create API key')
     }
@@ -589,22 +610,22 @@ export default function ManagementPage() {
           {/* API Keys Section */}
           <section className="management-section">
             <div className="section-header">
-              <h2>API Keys <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#666' }}>({activeKeyCount}/{MAX_ACTIVE_KEYS} active)</span></h2>
+              <h2>API Keys <span style={{ fontSize: '0.8rem', fontWeight: 'normal', color: '#666' }}>({activeKeyCount}/{clusterLimit === -1 ? 'unlimited' : clusterLimit} clusters)</span></h2>
               <button
                 className="btn btn-primary"
-                onClick={handleCreateAPIKey}
-                disabled={activeKeyCount >= MAX_ACTIVE_KEYS}
-                title={activeKeyCount >= MAX_ACTIVE_KEYS ? `Maximum ${MAX_ACTIVE_KEYS} active keys allowed` : 'Create a new API key'}
+                onClick={openCreateAPIKeyModal}
+                disabled={clusterLimit !== -1 && activeKeyCount >= clusterLimit}
+                title={clusterLimit !== -1 && activeKeyCount >= clusterLimit ? `Maximum ${clusterLimit} clusters allowed for your plan` : 'Create a new API key for a cluster'}
               >
                 Create API Key
               </button>
             </div>
-            {activeKeyCount >= MAX_ACTIVE_KEYS && (
+            {clusterLimit !== -1 && activeKeyCount >= clusterLimit && (
               <div className="warning-box" style={{ marginBottom: '1rem' }}>
                 <span className="warning-icon">!</span>
                 <p style={{ color: '#92400e' }}>
-                  <strong>Maximum API keys reached.</strong> You have {activeKeyCount} active keys (limit: {MAX_ACTIVE_KEYS}).
-                  Please revoke an existing key before creating a new one.
+                  <strong>Cluster limit reached.</strong> You have {activeKeyCount} active clusters (limit: {clusterLimit}).
+                  Please upgrade your plan or revoke an existing API key to add more clusters.
                 </p>
               </div>
             )}
@@ -613,6 +634,7 @@ export default function ManagementPage() {
                 <thead>
                   <tr>
                     <th>Key ID</th>
+                    <th>Cluster</th>
                     <th>Created</th>
                     <th>Expires</th>
                     <th>Status</th>
@@ -629,6 +651,7 @@ export default function ManagementPage() {
                             : key.key_id}
                         </code>
                       </td>
+                      <td style={{ color: '#213547' }}>{key.cluster_name || 'default-cluster'}</td>
                       <td style={{ color: '#213547' }}>{new Date(key.created_at).toLocaleDateString()}</td>
                       <td style={{ color: '#213547' }}>
                         {key.expires_at
@@ -654,7 +677,7 @@ export default function ManagementPage() {
                   ))}
                   {apiKeys.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="empty-state">
+                      <td colSpan={6} className="empty-state">
                         No API keys found. Create one to get started.
                       </td>
                     </tr>
@@ -923,6 +946,45 @@ export default function ManagementPage() {
                 disabled={deleteConfirmText !== 'DELETE'}
               >
                 Delete Organization
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create API Key Modal */}
+      {showCreateAPIKeyModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateAPIKeyModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 style={{ color: '#213547' }}>Create API Key</h2>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: '1rem', color: '#666' }}>
+                Each API key is associated with a specific cluster. The cluster name should match
+                the AGENT_CLUSTER_NAME environment variable in your cost-agent deployment.
+              </p>
+              <div className="form-group">
+                <label>Cluster Name</label>
+                <input
+                  type="text"
+                  value={newClusterName}
+                  onChange={(e) => setNewClusterName(e.target.value)}
+                  placeholder="e.g., production, staging, dev-cluster"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowCreateAPIKeyModal(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleCreateAPIKey}
+                disabled={!newClusterName.trim()}
+              >
+                Create API Key
               </button>
             </div>
           </div>
