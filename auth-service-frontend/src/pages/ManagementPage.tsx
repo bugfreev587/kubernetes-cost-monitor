@@ -465,9 +465,10 @@ export default function ManagementPage() {
   }
 
   const getHelmCommand = (clusterName: string) => {
-    const apiServerUrl = API_SERVER_URL.replace('localhost', '<YOUR_API_SERVER_HOST>').replace(/\/v1\/ingest$/, '')
+    // Remove /v1/ingest suffix if present - helm template adds it automatically
+    const apiServerUrl = API_SERVER_URL.replace('localhost', '<YOUR_API_SERVER_HOST>').replace(/\/v1\/ingest\/?$/, '')
     return `helm upgrade --install cost-agent oci://ghcr.io/bugfreev587/helm-cost-agent \\
-  --version 0.1.0 \\
+  --version 0.1.2 \\
   --set clusterName=${clusterName} \\
   --set serverUrl=${apiServerUrl} \\
   -n default`
