@@ -384,8 +384,15 @@ export default function ManagementPage() {
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.message || data.error || 'Failed to delete API key')
+        const text = await response.text()
+        let errorMessage = 'Failed to delete API key'
+        try {
+          const data = JSON.parse(text)
+          errorMessage = data.message || data.error || errorMessage
+        } catch {
+          if (text) errorMessage = text
+        }
+        throw new Error(errorMessage)
       }
 
       showSuccess('API key deleted')
