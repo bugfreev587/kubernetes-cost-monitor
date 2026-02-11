@@ -459,17 +459,16 @@ export default function ManagementPage() {
   // Generate installation commands
   const getKubectlCommand = (apiKey: string | null) => {
     const keyPlaceholder = apiKey || '<YOUR_SAVED_API_KEY>'
-    return `kubectl create secret generic cost-agent-secret \\
+    return `kubectl create secret generic cost-agent-api-key \\
   --from-literal=api-key=${keyPlaceholder} \\
   -n default`
   }
 
   const getHelmCommand = (clusterName: string) => {
-    const apiServerUrl = API_SERVER_URL.replace('localhost', '<YOUR_API_SERVER_HOST>')
+    const apiServerUrl = API_SERVER_URL.replace('localhost', '<YOUR_API_SERVER_HOST>').replace(/\/v1\/ingest$/, '')
     return `helm upgrade --install cost-agent oci://ghcr.io/bugfreev587/helm-cost-agent \\
   --version 0.1.0 \\
   --set clusterName=${clusterName} \\
-  --set apiSecretName=cost-agent-secret \\
   --set serverUrl=${apiServerUrl} \\
   -n default`
   }
