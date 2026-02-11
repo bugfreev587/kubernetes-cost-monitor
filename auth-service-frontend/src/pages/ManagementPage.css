@@ -498,6 +498,83 @@
   box-shadow: 0 0 0 3px rgba(100, 108, 255, 0.1);
 }
 
+/* Large Modal */
+.modal-large {
+  max-width: 700px;
+}
+
+/* Info Box */
+.info-box {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: #dbeafe;
+  border: 1px solid #60a5fa;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.info-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #3b82f6;
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.info-box p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* Install Instructions */
+.install-instructions {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.install-step {
+  margin-bottom: 0;
+}
+
+.install-step h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Command Box */
+.command-box {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  background: #1e293b;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.command-box pre {
+  flex: 1;
+  color: #e2e8f0;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+.command-box .btn {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .management-container {

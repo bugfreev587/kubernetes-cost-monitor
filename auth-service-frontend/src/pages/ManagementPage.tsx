@@ -43,9 +43,13 @@ export default function ManagementPage() {
   const [showDeleteTenantModal, setShowDeleteTenantModal] = useState(false)
   const [showNewAPIKeyModal, setShowNewAPIKeyModal] = useState(false)
   const [showCreateAPIKeyModal, setShowCreateAPIKeyModal] = useState(false)
+  const [showInstallModal, setShowInstallModal] = useState(false)
   const [newAPIKey, setNewAPIKey] = useState<string | null>(null)
   const [newClusterName, setNewClusterName] = useState('')
+  const [createdClusterName, setCreatedClusterName] = useState('')
+  const [installClusterName, setInstallClusterName] = useState('')
   const [clusterLimit, setClusterLimit] = useState<number>(1)
+  const [copiedCommand, setCopiedCommand] = useState<string | null>(null)
 
   // Form states
   const [inviteEmail, setInviteEmail] = useState('')
@@ -342,10 +346,10 @@ export default function ManagementPage() {
 
       const data = await response.json()
       setNewAPIKey(`${data.key_id}:${data.secret}`)
+      setCreatedClusterName(data.cluster_name)
       setShowCreateAPIKeyModal(false)
       setShowNewAPIKeyModal(true)
       fetchAPIKeys()
-      showSuccess(`API key created for cluster "${data.cluster_name}"!`)
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to create API key')
     }
@@ -435,6 +439,39 @@ export default function ManagementPage() {
     } catch {
       showError('Failed to copy')
     }
+  }
+
+  const copyCommand = async (text: string, commandId: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedCommand(commandId)
+      setTimeout(() => setCopiedCommand(null), 2000)
+    } catch {
+      showError('Failed to copy')
+    }
+  }
+
+  const openInstallModal = (clusterName: string) => {
+    setInstallClusterName(clusterName)
+    setShowInstallModal(true)
+  }
+
+  // Generate installation commands
+  const getKubectlCommand = (apiKey: string | null) => {
+    const keyPlaceholder = apiKey || '<YOUR_SAVED_API_KEY>'
+    return `kubectl create secret generic cost-agent-secret \\
+  --from-literal=api-key=${keyPlaceholder} \\
+  -n default`
+  }
+
+  const getHelmCommand = (clusterName: string) => {
+    const apiServerUrl = API_SERVER_URL.replace('localhost', '<YOUR_API_SERVER_HOST>')
+    return `helm install cost-agent oci://ghcr.io/bugfreev587/helm-cost-agent \\
+  --version 0.1.0 \\
+  --set clusterName=${clusterName} \\
+  --set apiSecretName=cost-agent-secret \\
+  --set serverUrl=${apiServerUrl} \\
+  -n default`
   }
 
   const handleCloseInviteModal = () => {
@@ -663,14 +700,23 @@ export default function ManagementPage() {
                           {key.revoked ? 'Revoked' : 'Active'}
                         </span>
                       </td>
-                      <td>
+                      <td className="actions-cell">
                         {!key.revoked && (
-                          <button
-                            className="btn btn-small btn-danger"
-                            onClick={() => handleRevokeAPIKey(key.key_id)}
-                          >
-                            Revoke
-                          </button>
+                          <>
+                            <button
+                              className="btn btn-small btn-secondary"
+                              onClick={() => openInstallModal(key.cluster_name || 'default-cluster')}
+                              title="View installation instructions"
+                            >
+                              Install
+                            </button>
+                            <button
+                              className="btn btn-small btn-danger"
+                              onClick={() => handleRevokeAPIKey(key.key_id)}
+                            >
+                              Revoke
+                            </button>
+                          </>
                         )}
                       </td>
                     </tr>
@@ -831,12 +877,12 @@ export default function ManagementPage() {
         </div>
       )}
 
-      {/* New API Key Modal */}
+      {/* New API Key Modal with Installation Instructions */}
       {showNewAPIKeyModal && newAPIKey && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content modal-large">
             <div className="modal-header">
-              <h2 style={{ color: '#213547' }}>API Key Created</h2>
+              <h2 style={{ color: '#213547' }}>API Key Created for "{createdClusterName}"</h2>
             </div>
             <div className="modal-body">
               <div className="warning-box">
@@ -846,11 +892,53 @@ export default function ManagementPage() {
                   Please copy and save it securely.
                 </p>
               </div>
-              <div className="api-key-display">
+              <div className="api-key-display" style={{ marginBottom: '1.5rem' }}>
                 <code style={{ color: '#213547', background: '#f5f5f5' }}>{newAPIKey}</code>
-                <button className="btn btn-small btn-secondary" onClick={() => copyToClipboard(newAPIKey)}>
-                  Copy
+                <button className="btn btn-small btn-secondary" onClick={() => copyCommand(newAPIKey, 'apikey')}>
+                  {copiedCommand === 'apikey' ? 'Copied!' : 'Copy'}
                 </button>
+              </div>
+
+              <div className="install-instructions">
+                <h3 style={{ color: '#213547', marginBottom: '1rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>
+                  Installation Instructions
+                </h3>
+
+                <div className="install-step">
+                  <h4 style={{ color: '#213547', marginBottom: '0.5rem' }}>Step 1: Create Kubernetes Secret</h4>
+                  <p style={{ color: '#666', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                    Run this command in your Kubernetes cluster to store the API key:
+                  </p>
+                  <div className="command-box">
+                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                      {getKubectlCommand(newAPIKey)}
+                    </pre>
+                    <button
+                      className="btn btn-small btn-secondary"
+                      onClick={() => copyCommand(getKubectlCommand(newAPIKey), 'kubectl')}
+                    >
+                      {copiedCommand === 'kubectl' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="install-step" style={{ marginTop: '1rem' }}>
+                  <h4 style={{ color: '#213547', marginBottom: '0.5rem' }}>Step 2: Install Cost Agent with Helm</h4>
+                  <p style={{ color: '#666', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                    Install the cost-agent using Helm:
+                  </p>
+                  <div className="command-box">
+                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                      {getHelmCommand(createdClusterName)}
+                    </pre>
+                    <button
+                      className="btn btn-small btn-secondary"
+                      onClick={() => copyCommand(getHelmCommand(createdClusterName), 'helm')}
+                    >
+                      {copiedCommand === 'helm' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="modal-footer">
@@ -859,9 +947,10 @@ export default function ManagementPage() {
                 onClick={() => {
                   setShowNewAPIKeyModal(false)
                   setNewAPIKey(null)
+                  setCreatedClusterName('')
                 }}
               >
-                I've saved my API key
+                I've saved my API key and instructions
               </button>
             </div>
           </div>
@@ -985,6 +1074,74 @@ export default function ManagementPage() {
                 disabled={!newClusterName.trim()}
               >
                 Create API Key
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Install Instructions Modal (for existing keys) */}
+      {showInstallModal && (
+        <div className="modal-overlay" onClick={() => setShowInstallModal(false)}>
+          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 style={{ color: '#213547' }}>Installation Instructions for "{installClusterName}"</h2>
+            </div>
+            <div className="modal-body">
+              <div className="info-box" style={{ marginBottom: '1rem' }}>
+                <span className="info-icon">i</span>
+                <p style={{ color: '#1e40af' }}>
+                  Use the API key you saved when creating this key. If you've lost it, revoke this key and create a new one.
+                </p>
+              </div>
+
+              <div className="install-instructions">
+                <div className="install-step">
+                  <h4 style={{ color: '#213547', marginBottom: '0.5rem' }}>Step 1: Create Kubernetes Secret</h4>
+                  <p style={{ color: '#666', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                    Run this command in your Kubernetes cluster to store the API key:
+                  </p>
+                  <div className="command-box">
+                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                      {getKubectlCommand(null)}
+                    </pre>
+                    <button
+                      className="btn btn-small btn-secondary"
+                      onClick={() => copyCommand(getKubectlCommand(null), 'kubectl-existing')}
+                    >
+                      {copiedCommand === 'kubectl-existing' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="install-step" style={{ marginTop: '1rem' }}>
+                  <h4 style={{ color: '#213547', marginBottom: '0.5rem' }}>Step 2: Install Cost Agent with Helm</h4>
+                  <p style={{ color: '#666', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                    Install the cost-agent using Helm:
+                  </p>
+                  <div className="command-box">
+                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                      {getHelmCommand(installClusterName)}
+                    </pre>
+                    <button
+                      className="btn btn-small btn-secondary"
+                      onClick={() => copyCommand(getHelmCommand(installClusterName), 'helm-existing')}
+                    >
+                      {copiedCommand === 'helm-existing' ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setShowInstallModal(false)
+                  setInstallClusterName('')
+                }}
+              >
+                Close
               </button>
             </div>
           </div>
