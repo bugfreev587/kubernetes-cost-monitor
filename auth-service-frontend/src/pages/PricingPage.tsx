@@ -147,9 +147,9 @@ export default function PricingPage() {
       setSuccess(`Successfully upgraded to ${planName} plan!`)
       setIsSelecting(null)
 
-      // Navigate to dashboard after a short delay
+      // Navigate to management page after a short delay
       setTimeout(() => {
-        navigate('/dashboard')
+        navigate('/management')
       }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')

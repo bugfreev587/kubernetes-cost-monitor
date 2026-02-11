@@ -461,6 +461,31 @@
   background-color: #c82333;
 }
 
+/* Dashboard Welcome Styling */
+.dashboard-welcome {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.dashboard-welcome h2 {
+  font-size: 1.75rem;
+  margin: 0 0 1rem 0;
+  color: #213547;
+  font-weight: 500;
+}
+
+.dashboard-welcome p {
+  color: #666;
+  font-size: 1.1rem;
+  margin: 0 0 2rem 0;
+}
+
+.dashboard-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
 /* API Key Management Styling */
 .api-key-section {
   margin-top: 3rem;
