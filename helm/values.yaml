@@ -31,8 +31,8 @@ rbac:
 
 # Agent configuration
 config:
-  # API server URL (required)
-  serverUrl: "https://api-server-production-7a9d.up.railway.app/v1/ingest"
+  # API server URL (required) - do NOT include /v1/ingest, agent adds it automatically
+  serverUrl: "https://api-server-production-7a9d.up.railway.app"
   
   # API key - can be set via secret or directly (not recommended for production)
   # If apiKey.secretName is set, it will use that instead

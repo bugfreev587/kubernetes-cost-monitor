@@ -50,7 +50,7 @@ func main() {
 	log.Printf("ticker created")
 	// initial immediate collect
 	go func() {
-		if err := collectAndSend(ctx, col, s); err != nil {
+		if err := collectAndSend(ctx, col, s, cfg.HTTPTimeout); err != nil {
 			log.Printf("initial collect send error: %v", err)
 		}
 	}()
@@ -59,7 +59,7 @@ func main() {
 		select {
 		case <-ticker.C:
 			log.Println("collecting and sending metrics")
-			if err := collectAndSend(ctx, col, s); err != nil {
+			if err := collectAndSend(ctx, col, s, cfg.HTTPTimeout); err != nil {
 				log.Printf("collect send error: %v", err)
 			}
 			log.Printf("metrics collected and sent, sleeping for %v seconds", cfg.CollectInterval)
@@ -92,8 +92,10 @@ func convertContainers(containers []collector.ContainerMetric) []sender.Containe
 	return result
 }
 
-func collectAndSend(ctx context.Context, c *collector.Collector, s *sender.Sender) error {
-	ctx2, cancel := context.WithTimeout(ctx, 30*time.Second)
+func collectAndSend(ctx context.Context, c *collector.Collector, s *sender.Sender, httpTimeout time.Duration) error {
+	// Use httpTimeout for context, with extra buffer for collection
+	timeout := httpTimeout + 30*time.Second
+	ctx2, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	// collect
 	pods, err := c.CollectPodMetrics(ctx2)
