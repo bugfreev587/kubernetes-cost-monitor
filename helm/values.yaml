@@ -6,7 +6,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/bugfreev587/cost-agent
   pullPolicy: IfNotPresent
-  tag: "cost-agent-v1.0.11-amd64-20260120-102416-68858e1"
+  tag: "cost-agent-amd64-20260211-105510-f2dbba9"
 
 imagePullSecrets:
   - name: ghcr-secret
@@ -31,8 +31,8 @@ rbac:
 
 # Agent configuration
 config:
-  # API server URL (required) - do NOT include /v1/ingest, agent adds it automatically
-  serverUrl: "https://api-server-production-7a9d.up.railway.app"
+  # API server URL is hardcoded - no need to set this
+  # serverUrl: "https://api-server-production-7a9d.up.railway.app"
   
   # API key - can be set via secret or directly (not recommended for production)
   # If apiKey.secretName is set, it will use that instead

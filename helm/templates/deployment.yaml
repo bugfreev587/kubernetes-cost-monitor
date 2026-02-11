@@ -33,7 +33,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: AGENT_SERVER_URL
-              value: "{{ trimSuffix "/" .Values.config.serverUrl }}/v1/ingest"
+              value: "https://api-server-production-7a9d.up.railway.app/v1/ingest"
             {{- if .Values.config.apiKeySecret.secretName }}
             - name: AGENT_API_KEY
               valueFrom:
