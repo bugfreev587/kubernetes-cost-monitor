@@ -1,5 +1,5 @@
 apiVersion: v2
-name: cost-agent
+name: helm-cost-agent
 description: A Helm chart for Kubernetes cost monitoring agent
 type: application
 version: 0.1.0
