@@ -466,7 +466,7 @@ export default function ManagementPage() {
 
   const getHelmCommand = (clusterName: string) => {
     const apiServerUrl = API_SERVER_URL.replace('localhost', '<YOUR_API_SERVER_HOST>')
-    return `helm install cost-agent oci://ghcr.io/bugfreev587/helm-cost-agent \\
+    return `helm upgrade --install cost-agent oci://ghcr.io/bugfreev587/helm-cost-agent \\
   --version 0.1.0 \\
   --set clusterName=${clusterName} \\
   --set apiSecretName=cost-agent-secret \\
