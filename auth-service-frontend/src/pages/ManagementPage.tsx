@@ -466,7 +466,7 @@ export default function ManagementPage() {
 
   const getHelmCommand = (clusterName: string) => {
     return `helm upgrade --install cost-agent oci://ghcr.io/bugfreev587/helm-cost-agent \\
-  --version 0.1.3 \\
+  --version 0.1.4 \\
   --set clusterName=${clusterName} \\
   -n default`
   }

@@ -45,7 +45,7 @@ spec:
               value: {{ .Values.config.apiKey | quote }}
             {{- end }}
             - name: AGENT_CLUSTER_NAME
-              value: {{ .Values.config.clusterName | quote }}
+              value: {{ .Values.clusterName | default .Values.config.clusterName | quote }}
             - name: AGENT_COLLECT_INTERVAL
               value: {{ .Values.config.collectInterval | quote }}
             - name: AGENT_HTTP_TIMEOUT

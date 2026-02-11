@@ -1,6 +1,9 @@
 # Default values for cost-agent
 # This is a YAML-formatted file.
 
+# Cluster name (required) - use --set clusterName=<your-cluster-name>
+clusterName: ""
+
 replicaCount: 1
 
 image:
