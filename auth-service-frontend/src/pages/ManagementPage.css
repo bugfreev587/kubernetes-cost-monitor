@@ -198,6 +198,23 @@
   padding: 2rem !important;
 }
 
+.welcome-message {
+  padding: 1rem;
+}
+
+.welcome-message h3 {
+  color: #213547;
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+}
+
+.welcome-message p {
+  color: #666;
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;

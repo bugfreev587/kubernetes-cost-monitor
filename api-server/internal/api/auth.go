@@ -204,20 +204,6 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			}
 		}
 
-		// Create a default API key for the new tenant (for their first cluster)
-		var apiKeyStr *string
-		expiresAt := time.Now().AddDate(1, 0, 0) // Expires in 1 year
-		defaultClusterName := "default-cluster"
-		keyID, secret, err := s.apiKeySvc.CreateKey(c.Request.Context(), tenant.ID, defaultClusterName, []string{"*"}, &expiresAt)
-		if err != nil {
-			log.Printf("Warning: Failed to create default API key for tenant %d: %v", tenant.ID, err)
-			// Don't fail the signup, just log the warning
-		} else {
-			fullKey := fmt.Sprintf("%s:%s", keyID, secret)
-			apiKeyStr = &fullKey
-			log.Printf("Created default API key for tenant %d: key_id=%s, cluster=%s", tenant.ID, keyID, defaultClusterName)
-		}
-
 		c.JSON(http.StatusCreated, SyncUserResponse{
 			UserID:      user.ID,
 			TenantID:    tenant.ID,
@@ -227,7 +213,6 @@ func (s *Server) syncUserHandler() gin.HandlerFunc {
 			Status:      user.Status,
 			PricingPlan: tenant.PricingPlan,
 			IsNewUser:   true,
-			APIKey:      apiKeyStr,
 		})
 	}
 }

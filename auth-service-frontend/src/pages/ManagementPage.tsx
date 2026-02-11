@@ -740,7 +740,17 @@ export default function ManagementPage() {
                   {apiKeys.length === 0 && (
                     <tr>
                       <td colSpan={6} className="empty-state">
-                        No API keys found. Create one to get started.
+                        <div className="welcome-message">
+                          <h3>Welcome! Let's get started</h3>
+                          <p>Create your first API key to deploy the cost-agent to your Kubernetes cluster and start monitoring costs.</p>
+                          <button
+                            className="btn btn-primary"
+                            onClick={openCreateAPIKeyModal}
+                            style={{ marginTop: '1rem' }}
+                          >
+                            Create Your First API Key
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
