@@ -855,3 +855,39 @@ func (s *Server) revokeAPIKeyHandler() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{"message": "API key revoked successfully"})
 	}
 }
+
+// deleteAPIKeyHandler permanently deletes a revoked API key
+func (s *Server) deleteAPIKeyHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		currentUser, ok := middleware.GetUserFromContext(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		keyID := c.Param("key_id")
+
+		db := s.postgresDB.GetPostgresDB()
+
+		var apiKey models.APIKey
+		if err := db.Where("key_id = ? AND tenant_id = ?", keyID, currentUser.TenantID).First(&apiKey).Error; err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API key not found"})
+			return
+		}
+
+		// Only allow deleting revoked keys
+		if !apiKey.Revoked {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete active API key. Revoke it first."})
+			return
+		}
+
+		if err := db.Delete(&apiKey).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete API key"})
+			return
+		}
+
+		log.Printf("API key permanently deleted: %s by %s", keyID, currentUser.Email)
+
+		c.JSON(http.StatusOK, gin.H{"message": "API key deleted successfully"})
+	}
+}

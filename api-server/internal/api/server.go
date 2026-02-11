@@ -173,6 +173,7 @@ func (s *Server) setupRoutes() {
 		admin.POST("/api_keys", s.makeCreateAPIKeyHandler())
 		admin.GET("/api_keys", s.listAPIKeysHandler())
 		admin.DELETE("/api_keys/:key_id", s.revokeAPIKeyHandler())
+		admin.DELETE("/api_keys/:key_id/permanent", s.deleteAPIKeyHandler())
 
 		// Tenant management (view)
 		admin.GET("/tenants/:tenant_id/pricing-plan", s.rbac.RequireTenantAccess("tenant_id"), s.getTenantPricingPlanHandler())

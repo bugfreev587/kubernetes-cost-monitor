@@ -374,6 +374,27 @@ export default function ManagementPage() {
     }
   }
 
+  const handleDeleteAPIKey = async (keyId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this API key? This cannot be undone.')) return
+
+    try {
+      const response = await fetch(`${API_SERVER_URL}/v1/admin/api_keys/${keyId}/permanent`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || data.error || 'Failed to delete API key')
+      }
+
+      showSuccess('API key deleted')
+      fetchAPIKeys()
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to delete API key')
+    }
+  }
+
   // Owner-only actions
   const handleTransferOwnership = async () => {
     if (!transferUserId) {
@@ -691,12 +712,19 @@ export default function ManagementPage() {
                         </span>
                       </td>
                       <td>
-                        {!key.revoked && (
+                        {!key.revoked ? (
                           <button
                             className="btn btn-small btn-danger"
                             onClick={() => handleRevokeAPIKey(key.key_id)}
                           >
                             Revoke
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn-small btn-secondary"
+                            onClick={() => handleDeleteAPIKey(key.key_id)}
+                          >
+                            Remove
                           </button>
                         )}
                       </td>
