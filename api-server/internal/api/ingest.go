@@ -82,6 +82,18 @@ func (s *Server) makeIngestHandler() gin.HandlerFunc {
 		ak := akI.(*models.APIKey) // import models if needed
 		tenantID := int64(ak.TenantID)
 
+		// Validate cluster name matches API key's cluster
+		// This prevents one API key from being used on multiple clusters
+		if ak.ClusterName != "" && ak.ClusterName != p.ClusterName {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error":            "cluster_mismatch",
+				"message":          fmt.Sprintf("This API key is for cluster '%s', but metrics were sent for cluster '%s'. Each API key can only be used for its designated cluster.", ak.ClusterName, p.ClusterName),
+				"expected_cluster": ak.ClusterName,
+				"received_cluster": p.ClusterName,
+			})
+			return
+		}
+
 		// Check cluster limit before accepting metrics
 		if err := s.planSvc.CheckClusterLimit(ctx, tenantID, p.ClusterName); err != nil {
 			if planErr, ok := err.(*services.PlanLimitError); ok {
