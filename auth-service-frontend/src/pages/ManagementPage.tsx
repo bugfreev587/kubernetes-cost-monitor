@@ -43,11 +43,9 @@ export default function ManagementPage() {
   const [showDeleteTenantModal, setShowDeleteTenantModal] = useState(false)
   const [showNewAPIKeyModal, setShowNewAPIKeyModal] = useState(false)
   const [showCreateAPIKeyModal, setShowCreateAPIKeyModal] = useState(false)
-  const [showInstallModal, setShowInstallModal] = useState(false)
   const [newAPIKey, setNewAPIKey] = useState<string | null>(null)
   const [newClusterName, setNewClusterName] = useState('')
   const [createdClusterName, setCreatedClusterName] = useState('')
-  const [installClusterName, setInstallClusterName] = useState('')
   const [clusterLimit, setClusterLimit] = useState<number>(1)
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null)
 
@@ -451,11 +449,6 @@ export default function ManagementPage() {
     }
   }
 
-  const openInstallModal = (clusterName: string) => {
-    setInstallClusterName(clusterName)
-    setShowInstallModal(true)
-  }
-
   // Generate installation commands
   const getKubectlCommand = (apiKey: string | null) => {
     const keyPlaceholder = apiKey || '<YOUR_SAVED_API_KEY>'
@@ -697,23 +690,14 @@ export default function ManagementPage() {
                           {key.revoked ? 'Revoked' : 'Active'}
                         </span>
                       </td>
-                      <td className="actions-cell">
+                      <td>
                         {!key.revoked && (
-                          <>
-                            <button
-                              className="btn btn-small btn-secondary"
-                              onClick={() => openInstallModal(key.cluster_name || 'default-cluster')}
-                              title="View installation instructions"
-                            >
-                              Install
-                            </button>
-                            <button
-                              className="btn btn-small btn-danger"
-                              onClick={() => handleRevokeAPIKey(key.key_id)}
-                            >
-                              Revoke
-                            </button>
-                          </>
+                          <button
+                            className="btn btn-small btn-danger"
+                            onClick={() => handleRevokeAPIKey(key.key_id)}
+                          >
+                            Revoke
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -1077,73 +1061,6 @@ export default function ManagementPage() {
         </div>
       )}
 
-      {/* Install Instructions Modal (for existing keys) */}
-      {showInstallModal && (
-        <div className="modal-overlay" onClick={() => setShowInstallModal(false)}>
-          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 style={{ color: '#213547' }}>Installation Instructions for "{installClusterName}"</h2>
-            </div>
-            <div className="modal-body">
-              <div className="info-box" style={{ marginBottom: '1rem' }}>
-                <span className="info-icon">i</span>
-                <p style={{ color: '#1e40af' }}>
-                  Use the API key you saved when creating this key. If you've lost it, revoke this key and create a new one.
-                </p>
-              </div>
-
-              <div className="install-instructions">
-                <div className="install-step">
-                  <h4 style={{ color: '#213547', marginBottom: '0.5rem' }}>Step 1: Create Kubernetes Secret</h4>
-                  <p style={{ color: '#666', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-                    Run this command in your Kubernetes cluster to store the API key:
-                  </p>
-                  <div className="command-box">
-                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                      {getKubectlCommand(null)}
-                    </pre>
-                    <button
-                      className="btn btn-small btn-secondary"
-                      onClick={() => copyCommand(getKubectlCommand(null), 'kubectl-existing')}
-                    >
-                      {copiedCommand === 'kubectl-existing' ? 'Copied!' : 'Copy'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="install-step" style={{ marginTop: '1rem' }}>
-                  <h4 style={{ color: '#213547', marginBottom: '0.5rem' }}>Step 2: Install Cost Agent with Helm</h4>
-                  <p style={{ color: '#666', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-                    Install the cost-agent using Helm:
-                  </p>
-                  <div className="command-box">
-                    <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                      {getHelmCommand(installClusterName)}
-                    </pre>
-                    <button
-                      className="btn btn-small btn-secondary"
-                      onClick={() => copyCommand(getHelmCommand(installClusterName), 'helm-existing')}
-                    >
-                      {copiedCommand === 'helm-existing' ? 'Copied!' : 'Copy'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  setShowInstallModal(false)
-                  setInstallClusterName('')
-                }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
