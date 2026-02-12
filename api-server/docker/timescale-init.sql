@@ -14,7 +14,11 @@ CREATE TABLE IF NOT EXISTS pod_metrics (
   cpu_request_millicores BIGINT,
   memory_request_bytes BIGINT,
   cpu_limit_millicores BIGINT,
-  memory_limit_bytes BIGINT
+  memory_limit_bytes BIGINT,
+  labels JSONB,
+  phase TEXT,
+  qos_class TEXT,
+  containers JSONB
 );
 SELECT create_hypertable('pod_metrics','time', if_not_exists => TRUE);
 
