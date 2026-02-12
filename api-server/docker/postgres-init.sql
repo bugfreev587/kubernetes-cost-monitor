@@ -19,11 +19,13 @@ CREATE TABLE IF NOT EXISTS pricing_plans (
   created_at timestamptz DEFAULT now()
 );
 
--- Seed default pricing plans
-INSERT INTO pricing_plans (name, display_name, price_cents, cluster_limit, node_limit, user_limit, retention_days, features) VALUES
+-- Seed default pricing plans (idempotent - skip if already exists)
+INSERT INTO pricing_plans (name, display_name, price_cents, cluster_limit, node_limit, user_limit, retention_days, features)
+VALUES
   ('Starter', 'Starter', 0, 1, 5, 1, 7, ARRAY['1 cluster', 'Up to 5 nodes', '7-day data retention', 'Basic cost tracking', 'Email support']),
   ('Premium', 'Premium', 4900, 10, 100, 10, 30, ARRAY['Up to 10 clusters', 'Up to 100 nodes', '30-day data retention', 'Advanced analytics', 'Cost optimization recommendations', 'Custom alerts']),
-  ('Business', 'Business', 19900, -1, -1, -1, 365, ARRAY['Unlimited clusters', 'Unlimited nodes', '1 year data retention', 'Enterprise analytics', '24/7 support', 'Custom integrations', 'SLA guarantee']);
+  ('Business', 'Business', 19900, -1, -1, -1, 365, ARRAY['Unlimited clusters', 'Unlimited nodes', '1 year data retention', 'Enterprise analytics', '24/7 support', 'Custom integrations', 'SLA guarantee'])
+ON CONFLICT (name) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS tenants (
   id BIGSERIAL PRIMARY KEY,
@@ -139,69 +141,69 @@ CREATE INDEX IF NOT EXISTS idx_node_pricing_cluster ON node_pricing(cluster_name
 
 \echo "k8s_cost database initialized."
 
--- ============================
--- Test Data: Tenants
--- ============================
-INSERT INTO tenants (id, name, pricing_plan) VALUES
-  (1, 'Acme Corporation', 'Premium'),
-  (2, 'Globex Industries', 'Business'),
-  (3, 'Skynet Systems', 'Starter');
+-- -- ============================
+-- -- Test Data: Tenants
+-- -- ============================
+-- INSERT INTO tenants (id, name, pricing_plan) VALUES
+--   (1, 'Acme Corporation', 'Premium'),
+--   (2, 'Globex Industries', 'Business'),
+--   (3, 'Skynet Systems', 'Starter');
 
--- ============================
--- Test Data: Users
--- ============================
--- First user of each tenant is owner, others are viewers
--- id is the Clerk user ID (using test IDs here)
-INSERT INTO users (id, tenant_id, email, name, role, status) VALUES
-  ('user_test_wile_coyote', 1, 'wile.coyote@acme.com', 'Wile E. Coyote', 'owner', 'active'),
-  ('user_test_road_runner', 1, 'road.runner@acme.com', 'Road Runner', 'viewer', 'active'),
-  ('user_test_hank_scorpio', 2, 'hank.scorpio@globex.com', 'Hank Scorpio', 'owner', 'active'),
-  ('user_test_miles_dyson', 3, 'miles.dyson@skynet.com', 'Miles Dyson', 'owner', 'active');
+-- -- ============================
+-- -- Test Data: Users
+-- -- ============================
+-- -- First user of each tenant is owner, others are viewers
+-- -- id is the Clerk user ID (using test IDs here)
+-- INSERT INTO users (id, tenant_id, email, name, role, status) VALUES
+--   ('user_test_wile_coyote', 1, 'wile.coyote@acme.com', 'Wile E. Coyote', 'owner', 'active'),
+--   ('user_test_road_runner', 1, 'road.runner@acme.com', 'Road Runner', 'viewer', 'active'),
+--   ('user_test_hank_scorpio', 2, 'hank.scorpio@globex.com', 'Hank Scorpio', 'owner', 'active'),
+--   ('user_test_miles_dyson', 3, 'miles.dyson@skynet.com', 'Miles Dyson', 'owner', 'active');
 
--- ============================
--- Test Data: API Keys
--- ============================
--- store a fake secret (never used in prod)
-INSERT INTO api_keys (tenant_id, key_id, salt, secret_hash, scopes, revoked, expires_at)
-VALUES
-  (
-    1,
-    gen_random_uuid(),
-    gen_random_bytes(16),
-    digest('super-secret-key-acme', 'sha256'),
-    ARRAY['metrics:read', 'recommendations:read'],
-    FALSE,
-    now() + interval '90 days'
-  ),
-  (
-    2,
-    gen_random_uuid(),
-    gen_random_bytes(16),
-    digest('globex-test-key', 'sha256'),
-    ARRAY['*'],
-    FALSE,
-    now() + interval '365 days'
-  ),
-  (
-    3,
-    gen_random_uuid(),
-    gen_random_bytes(16),
-    digest('terminator-key', 'sha256'),
-    ARRAY['metrics:read'],
-    TRUE,
-    NULL
-  );
+-- -- ============================
+-- -- Test Data: API Keys
+-- -- ============================
+-- -- store a fake secret (never used in prod)
+-- INSERT INTO api_keys (tenant_id, key_id, salt, secret_hash, scopes, revoked, expires_at)
+-- VALUES
+--   (
+--     1,
+--     gen_random_uuid(),
+--     gen_random_bytes(16),
+--     digest('super-secret-key-acme', 'sha256'),
+--     ARRAY['metrics:read', 'recommendations:read'],
+--     FALSE,
+--     now() + interval '90 days'
+--   ),
+--   (
+--     2,
+--     gen_random_uuid(),
+--     gen_random_bytes(16),
+--     digest('globex-test-key', 'sha256'),
+--     ARRAY['*'],
+--     FALSE,
+--     now() + interval '365 days'
+--   ),
+--   (
+--     3,
+--     gen_random_uuid(),
+--     gen_random_bytes(16),
+--     digest('terminator-key', 'sha256'),
+--     ARRAY['metrics:read'],
+--     TRUE,
+--     NULL
+--   );
 
--- ============================
--- Test Data: Recommendations
--- ============================
-INSERT INTO recommendations (
-  tenant_id, cluster_name, namespace, pod_name, resource_type,
-  current_request, recommended_request, potential_savings_usd,
-  confidence, reason, status
-)
-VALUES
-  (1, 'cluster-a', 'default', 'api-server-1', 'cpu', 500, 250, 12.55, 0.92, 'CPU consistently underutilized', 'open'),
-  (1, 'cluster-a', 'ml', 'training-pod', 'memory', 2048, 1024, 8.32, 0.87, 'Memory spikes rare', 'open'),
-  (2, 'cluster-b', 'analytics', 'spark-worker-3', 'cpu', 2000, 1500, 21.78, 0.75, 'Workload stabilized', 'closed'),
-  (3, 'skynet-cluster', 'war', 't800-control', 'cpu', 1000, 750, 5.00, 0.80, 'AI load reduced', 'open');
+-- -- ============================
+-- -- Test Data: Recommendations
+-- -- ============================
+-- INSERT INTO recommendations (
+--   tenant_id, cluster_name, namespace, pod_name, resource_type,
+--   current_request, recommended_request, potential_savings_usd,
+--   confidence, reason, status
+-- )
+-- VALUES
+--   (1, 'cluster-a', 'default', 'api-server-1', 'cpu', 500, 250, 12.55, 0.92, 'CPU consistently underutilized', 'open'),
+--   (1, 'cluster-a', 'ml', 'training-pod', 'memory', 2048, 1024, 8.32, 0.87, 'Memory spikes rare', 'open'),
+--   (2, 'cluster-b', 'analytics', 'spark-worker-3', 'cpu', 2000, 1500, 21.78, 0.75, 'Workload stabilized', 'closed'),
+--   (3, 'skynet-cluster', 'war', 't800-control', 'cpu', 1000, 750, 5.00, 0.80, 'AI load reduced', 'open');
