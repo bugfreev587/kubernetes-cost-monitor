@@ -185,14 +185,100 @@ export function useCostData(): UseCostDataResult {
         memory_gb_hours: (item.ramByteHours || 0) / (1024 * 1024 * 1024), // Convert bytes to GB
       }))
 
+      // Transform trends from API format
+      // API returns: { time, estimated_cost_usd, total_cpu_request_millicores, total_memory_request_bytes, ... }
+      // Frontend expects: { date, cost, cpu_cost, memory_cost }
+      const trends: CostTrend[] = (trendsData?.trends || []).map((t: {
+        time?: string
+        estimated_cost_usd?: number
+        total_cpu_request_millicores?: number
+        total_memory_request_bytes?: number
+      }) => {
+        const totalCost = t.estimated_cost_usd || 0
+        // Estimate CPU/memory cost split using resource request proportions with typical cloud pricing weights
+        const cpuCores = (t.total_cpu_request_millicores || 0) / 1000
+        const ramGB = (t.total_memory_request_bytes || 0) / (1024 * 1024 * 1024)
+        const cpuWeighted = cpuCores * 0.031611 // typical CPU $/core-hour
+        const ramWeighted = ramGB * 0.004237    // typical RAM $/GB-hour
+        const totalWeighted = cpuWeighted + ramWeighted
+        const cpuRatio = totalWeighted > 0 ? cpuWeighted / totalWeighted : 0.58
+        return {
+          date: t.time ? new Date(t.time).toISOString().split('T')[0] : '',
+          cost: totalCost,
+          cpu_cost: totalCost * cpuRatio,
+          memory_cost: totalCost * (1 - cpuRatio),
+        }
+      })
+
+      // Transform utilization from API format
+      // API returns: { cluster_name, cpu_utilization_percent, memory_utilization_percent, avg_cpu_usage_millicores, avg_cpu_request_millicores, avg_memory_usage_bytes, avg_memory_request_bytes }
+      // Frontend expects: { cluster, cpu_utilization, memory_utilization, cpu_used, cpu_requested, memory_used, memory_requested, estimated_cost }
+      const utilization: UtilizationMetric[] = (utilizationData?.metrics || []).map((m: {
+        cluster_name?: string
+        namespace?: string
+        pod_name?: string
+        cpu_utilization_percent?: number
+        memory_utilization_percent?: number
+        avg_cpu_usage_millicores?: number
+        avg_cpu_request_millicores?: number
+        avg_memory_usage_bytes?: number
+        avg_memory_request_bytes?: number
+      }) => ({
+        pod_name: m.pod_name || '',
+        namespace: m.namespace || '',
+        cluster: m.cluster_name || '',
+        cpu_utilization: m.cpu_utilization_percent || 0,
+        memory_utilization: m.memory_utilization_percent || 0,
+        cpu_requested: m.avg_cpu_request_millicores || 0,
+        cpu_used: m.avg_cpu_usage_millicores || 0,
+        memory_requested: m.avg_memory_request_bytes || 0,
+        memory_used: m.avg_memory_usage_bytes || 0,
+        estimated_cost: 0, // Not available from this endpoint; computed elsewhere
+      }))
+
+      // Transform recommendations from API format
+      // API returns array of: { ID, PodName, Namespace, ClusterName, ResourceType, CurrentRequest, RecommendedRequest, PotentialSavingsUSD, Status, CreatedAt, Reason }
+      // Frontend expects: { id, pod_name, namespace, cluster, reason, current_cpu, current_memory, recommended_cpu, recommended_memory, estimated_savings, status, created_at }
+      const rawRecs: Recommendation[] = (Array.isArray(recommendationsData) ? recommendationsData : recommendationsData?.recommendations || []).map((r: {
+        ID?: number; id?: number
+        PodName?: string; pod_name?: string
+        Namespace?: string; namespace?: string
+        ClusterName?: string; cluster_name?: string; cluster?: string
+        ResourceType?: string; resource_type?: string
+        CurrentRequest?: number; current_request?: number
+        RecommendedRequest?: number; recommended_request?: number
+        PotentialSavingsUSD?: number; potential_savings_usd?: number; estimated_savings?: number
+        Status?: string; status?: string
+        CreatedAt?: string; created_at?: string
+        Reason?: string; reason?: string
+        current_cpu?: number; current_memory?: number
+        recommended_cpu?: number; recommended_memory?: number
+      }) => {
+        const resourceType = (r.ResourceType || r.resource_type || 'cpu').toLowerCase()
+        const currentReq = r.CurrentRequest || r.current_request || 0
+        const recommendedReq = r.RecommendedRequest || r.recommended_request || 0
+        return {
+          id: r.ID || r.id || 0,
+          pod_name: r.PodName || r.pod_name || '',
+          namespace: r.Namespace || r.namespace || '',
+          cluster: r.ClusterName || r.cluster_name || r.cluster || '',
+          reason: r.Reason || r.reason || '',
+          current_cpu: resourceType === 'cpu' ? currentReq : (r.current_cpu || 0),
+          current_memory: resourceType === 'memory' ? currentReq : (r.current_memory || 0),
+          recommended_cpu: resourceType === 'cpu' ? recommendedReq : (r.recommended_cpu || 0),
+          recommended_memory: resourceType === 'memory' ? recommendedReq : (r.recommended_memory || 0),
+          estimated_savings: r.PotentialSavingsUSD || r.potential_savings_usd || r.estimated_savings || 0,
+          status: (r.Status || r.status || 'open') as 'open' | 'applied' | 'dismissed',
+          created_at: r.CreatedAt || r.created_at || '',
+        }
+      })
+
       setState({
         topline,
         namespaceAllocations,
-        trends: trendsData?.trends || [],
-        utilization: utilizationData?.metrics || [],
-        recommendations: (recommendationsData?.recommendations || []).filter(
-          (r: Recommendation) => r.status === 'open'
-        ),
+        trends,
+        utilization,
+        recommendations: rawRecs.filter(r => r.status === 'open'),
         loading: false,
         error: null,
       })

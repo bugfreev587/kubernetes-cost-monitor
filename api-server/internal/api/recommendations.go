@@ -3,43 +3,78 @@ package api
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
+	"github.com/bugfreev587/k8s-cost-api-server/internal/middleware"
 	"github.com/bugfreev587/k8s-cost-api-server/internal/models"
 	"github.com/bugfreev587/k8s-cost-api-server/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// GET /recommendations
+// GET /v1/recommendations
 func (s *Server) getRecommendations(c *gin.Context) {
-	akI, exists := c.Get("api_key")
-	var tenantID uint = 0
-	if exists {
-		ak := akI.(*models.APIKey)
-		tenantID = ak.TenantID
+	tenantID, ok := middleware.GetTenantIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no tenant context"})
+		return
 	}
 
 	var recs []models.Recommendation
-	query := s.postgresDB.GetPostgresDB()
-	if tenantID > 0 {
-		query = query.Where("tenant_id = ?", tenantID)
-	}
-	if err := query.Find(&recs).Error; err != nil {
+	if err := s.postgresDB.GetPostgresDB().Where("tenant_id = ?", tenantID).Find(&recs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, recs)
+
+	// Transform to frontend-expected format
+	type recResponse struct {
+		ID                int     `json:"id"`
+		PodName           string  `json:"pod_name"`
+		Namespace         string  `json:"namespace"`
+		Cluster           string  `json:"cluster"`
+		Reason            string  `json:"reason"`
+		CurrentCPU        int64   `json:"current_cpu"`
+		CurrentMemory     int64   `json:"current_memory"`
+		RecommendedCPU    int64   `json:"recommended_cpu"`
+		RecommendedMemory int64   `json:"recommended_memory"`
+		EstimatedSavings  float64 `json:"estimated_savings"`
+		Status            string  `json:"status"`
+		CreatedAt         string  `json:"created_at"`
+	}
+
+	var result []recResponse
+	for _, r := range recs {
+		resp := recResponse{
+			ID:               int(r.ID),
+			PodName:          r.PodName,
+			Namespace:        r.Namespace,
+			Cluster:          r.ClusterName,
+			Reason:           r.Reason,
+			EstimatedSavings: r.PotentialSavingsUSD,
+			Status:           r.Status,
+			CreatedAt:        r.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		}
+		if strings.EqualFold(r.ResourceType, "cpu") {
+			resp.CurrentCPU = r.CurrentRequest
+			resp.RecommendedCPU = r.RecommendedRequest
+		} else if strings.EqualFold(r.ResourceType, "memory") {
+			resp.CurrentMemory = r.CurrentRequest
+			resp.RecommendedMemory = r.RecommendedRequest
+		}
+		result = append(result, resp)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"recommendations": result})
 }
 
 // POST /v1/recommendations/generate - Generate right-sizing recommendations
 func (s *Server) generateRecommendations(c *gin.Context) {
-	akI, exists := c.Get("api_key")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "no api key context"})
+	tid, ok := middleware.GetTenantIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no tenant context"})
 		return
 	}
-	ak := akI.(*models.APIKey)
-	tenantID := int64(ak.TenantID)
+	tenantID := int64(tid)
 
 	lookbackHours := 24 // Default
 	if hoursStr := c.Query("lookback_hours"); hoursStr != "" {
