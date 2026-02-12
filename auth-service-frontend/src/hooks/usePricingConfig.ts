@@ -16,6 +16,7 @@ interface UsePricingConfigResult {
   configs: PricingConfig[]
   presets: ProviderPresets | null
   clusterPricings: ClusterPricing[]
+  availableClusters: string[]
 
   // State
   loading: boolean
@@ -40,6 +41,7 @@ export function usePricingConfig(): UsePricingConfigResult {
   const [configs, setConfigs] = useState<PricingConfig[]>([])
   const [presets, setPresets] = useState<ProviderPresets | null>(null)
   const [clusterPricings, setClusterPricings] = useState<ClusterPricing[]>([])
+  const [availableClusters, setAvailableClusters] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -107,18 +109,36 @@ export function usePricingConfig(): UsePricingConfigResult {
     }
   }, [getHeaders])
 
+  // Fetch available clusters from active API keys
+  const fetchAvailableClusters = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_SERVER_URL}/v1/admin/api_keys`, {
+        headers: getHeaders(),
+      })
+      if (!response.ok) return
+      const data = await response.json()
+      const clusters = (data.api_keys || [])
+        .filter((key: { revoked: boolean }) => !key.revoked)
+        .map((key: { cluster_name: string }) => key.cluster_name)
+        .filter((name: string, index: number, arr: string[]) => arr.indexOf(name) === index)
+      setAvailableClusters(clusters)
+    } catch {
+      // Non-critical, silently fail
+    }
+  }, [getHeaders])
+
   // Refresh all data
   const refresh = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      await Promise.all([fetchConfigs(), fetchPresets(), fetchClusterPricings()])
+      await Promise.all([fetchConfigs(), fetchPresets(), fetchClusterPricings(), fetchAvailableClusters()])
     } catch (err) {
       setError(handleError(err))
     } finally {
       setLoading(false)
     }
-  }, [fetchConfigs, fetchPresets, fetchClusterPricings])
+  }, [fetchConfigs, fetchPresets, fetchClusterPricings, fetchAvailableClusters])
 
   // Initial load
   useEffect(() => {
@@ -289,6 +309,7 @@ export function usePricingConfig(): UsePricingConfigResult {
     configs,
     presets,
     clusterPricings,
+    availableClusters,
     loading,
     error,
     refresh,

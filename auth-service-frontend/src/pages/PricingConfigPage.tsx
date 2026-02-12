@@ -26,6 +26,7 @@ export default function PricingConfigPage() {
     configs,
     presets,
     clusterPricings,
+    availableClusters,
     loading,
     error: fetchError,
     refresh,
@@ -194,8 +195,8 @@ export default function PricingConfigPage() {
   }
 
   const handleAssignCluster = async () => {
-    if (!assignForm.clusterName.trim()) {
-      showError('Please enter a cluster name')
+    if (!assignForm.clusterName) {
+      showError('Please select a cluster')
       return
     }
     if (!assignForm.configId) {
@@ -704,13 +705,17 @@ export default function PricingConfigPage() {
                 Assign a pricing configuration to a cluster. This overrides the default pricing for that cluster.
               </p>
               <div className="form-group">
-                <label>Cluster Name</label>
-                <input
-                  type="text"
+                <label>Cluster</label>
+                <select
                   value={assignForm.clusterName}
                   onChange={e => setAssignForm({ ...assignForm, clusterName: e.target.value })}
-                  placeholder="e.g., production-cluster"
-                />
+                >
+                  <option value="">Select a cluster...</option>
+                  {availableClusters.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+                <span className="help-text">Only clusters with active API keys are shown</span>
               </div>
               <div className="form-group">
                 <label>Pricing Configuration</label>
