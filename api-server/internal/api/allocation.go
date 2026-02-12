@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bugfreev587/k8s-cost-api-server/internal/models"
+	"github.com/bugfreev587/k8s-cost-api-server/internal/middleware"
 	"github.com/bugfreev587/k8s-cost-api-server/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -32,17 +32,15 @@ import (
 //   GET /v1/allocation?window=lastweek&aggregate=cluster&step=1d&accumulate=false
 //   GET /v1/allocation?window=30d&aggregate=pod&filter=namespace:production&filter=cluster:prod-east
 func (s *Server) getAllocation(c *gin.Context) {
-	akI, exists := c.Get("api_key")
-	if !exists {
+	tenantID, ok := middleware.GetTenantIDFromContext(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"code":    401,
 			"status":  "error",
-			"message": "no api key context",
+			"message": "no tenant context",
 		})
 		return
 	}
-	ak := akI.(*models.APIKey)
-	tenantID := int64(ak.TenantID)
 
 	// Parse query parameters
 	params := services.AllocationParams{
@@ -104,7 +102,7 @@ func (s *Server) getAllocation(c *gin.Context) {
 	// Get allocations
 	pool := s.timescaleDB.GetTimescalePool().(*pgxpool.Pool)
 	allocSvc := services.NewAllocationService(pool)
-	response, err := allocSvc.GetAllocations(c.Request.Context(), tenantID, params)
+	response, err := allocSvc.GetAllocations(c.Request.Context(), int64(tenantID), params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
@@ -129,17 +127,15 @@ func (s *Server) getAllocationCompute(c *gin.Context) {
 // GET /v1/allocation/summary
 // Returns condensed allocation summary with key metrics
 func (s *Server) getAllocationSummary(c *gin.Context) {
-	akI, exists := c.Get("api_key")
-	if !exists {
+	tenantID, ok := middleware.GetTenantIDFromContext(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"code":    401,
 			"status":  "error",
-			"message": "no api key context",
+			"message": "no tenant context",
 		})
 		return
 	}
-	ak := akI.(*models.APIKey)
-	tenantID := int64(ak.TenantID)
 
 	// Parse query parameters - simpler than full allocation
 	params := services.AllocationParams{
@@ -156,7 +152,7 @@ func (s *Server) getAllocationSummary(c *gin.Context) {
 	// Get allocations
 	pool := s.timescaleDB.GetTimescalePool().(*pgxpool.Pool)
 	allocSvc := services.NewAllocationService(pool)
-	response, err := allocSvc.GetAllocations(c.Request.Context(), tenantID, params)
+	response, err := allocSvc.GetAllocations(c.Request.Context(), int64(tenantID), params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
@@ -214,17 +210,15 @@ func (s *Server) getAllocationSummary(c *gin.Context) {
 // GET /v1/allocation/summary/topline
 // Returns aggregated totals across all allocations
 func (s *Server) getAllocationTopline(c *gin.Context) {
-	akI, exists := c.Get("api_key")
-	if !exists {
+	tenantID, ok := middleware.GetTenantIDFromContext(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"code":    401,
 			"status":  "error",
-			"message": "no api key context",
+			"message": "no tenant context",
 		})
 		return
 	}
-	ak := akI.(*models.APIKey)
-	tenantID := int64(ak.TenantID)
 
 	// Parse query parameters
 	params := services.AllocationParams{
@@ -238,7 +232,7 @@ func (s *Server) getAllocationTopline(c *gin.Context) {
 	// Get allocations
 	pool := s.timescaleDB.GetTimescalePool().(*pgxpool.Pool)
 	allocSvc := services.NewAllocationService(pool)
-	response, err := allocSvc.GetAllocations(c.Request.Context(), tenantID, params)
+	response, err := allocSvc.GetAllocations(c.Request.Context(), int64(tenantID), params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,

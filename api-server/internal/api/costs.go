@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bugfreev587/k8s-cost-api-server/internal/models"
+	"github.com/bugfreev587/k8s-cost-api-server/internal/middleware"
 	"github.com/bugfreev587/k8s-cost-api-server/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,13 +12,11 @@ import (
 
 // GET /v1/costs/namespaces
 func (s *Server) getCostsByNamespace(c *gin.Context) {
-	akI, exists := c.Get("api_key")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "no api key context"})
+	tenantID, ok := middleware.GetTenantIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no tenant context"})
 		return
 	}
-	ak := akI.(*models.APIKey)
-	tenantID := int64(ak.TenantID)
 
 	// Parse query parameters
 	startTimeStr := c.DefaultQuery("start_time", "")
@@ -49,7 +47,7 @@ func (s *Server) getCostsByNamespace(c *gin.Context) {
 
 	pool := s.timescaleDB.GetTimescalePool().(*pgxpool.Pool)
 	costSvc := services.NewCostService(pool)
-	results, err := costSvc.CostByNamespace(c.Request.Context(), tenantID, startTime, endTime)
+	results, err := costSvc.CostByNamespace(c.Request.Context(), int64(tenantID), startTime, endTime)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -64,13 +62,11 @@ func (s *Server) getCostsByNamespace(c *gin.Context) {
 
 // GET /v1/costs/clusters
 func (s *Server) getCostsByCluster(c *gin.Context) {
-	akI, exists := c.Get("api_key")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "no api key context"})
+	tenantID, ok := middleware.GetTenantIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no tenant context"})
 		return
 	}
-	ak := akI.(*models.APIKey)
-	tenantID := int64(ak.TenantID)
 
 	// Parse query parameters
 	startTimeStr := c.DefaultQuery("start_time", "")
@@ -101,7 +97,7 @@ func (s *Server) getCostsByCluster(c *gin.Context) {
 
 	pool := s.timescaleDB.GetTimescalePool().(*pgxpool.Pool)
 	costSvc := services.NewCostService(pool)
-	results, err := costSvc.CostByCluster(c.Request.Context(), tenantID, startTime, endTime)
+	results, err := costSvc.CostByCluster(c.Request.Context(), int64(tenantID), startTime, endTime)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -116,13 +112,11 @@ func (s *Server) getCostsByCluster(c *gin.Context) {
 
 // GET /v1/costs/utilization
 func (s *Server) getUtilizationVsRequests(c *gin.Context) {
-	akI, exists := c.Get("api_key")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "no api key context"})
+	tenantID, ok := middleware.GetTenantIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no tenant context"})
 		return
 	}
-	ak := akI.(*models.APIKey)
-	tenantID := int64(ak.TenantID)
 
 	// Parse query parameters
 	startTimeStr := c.DefaultQuery("start_time", "")
@@ -155,7 +149,7 @@ func (s *Server) getUtilizationVsRequests(c *gin.Context) {
 
 	pool := s.timescaleDB.GetTimescalePool().(*pgxpool.Pool)
 	costSvc := services.NewCostService(pool)
-	results, err := costSvc.UtilizationVsRequests(c.Request.Context(), tenantID, startTime, endTime, namespace, cluster)
+	results, err := costSvc.UtilizationVsRequests(c.Request.Context(), int64(tenantID), startTime, endTime, namespace, cluster)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -170,13 +164,11 @@ func (s *Server) getUtilizationVsRequests(c *gin.Context) {
 
 // GET /v1/costs/trends
 func (s *Server) getCostTrends(c *gin.Context) {
-	akI, exists := c.Get("api_key")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "no api key context"})
+	tenantID, ok := middleware.GetTenantIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no tenant context"})
 		return
 	}
-	ak := akI.(*models.APIKey)
-	tenantID := int64(ak.TenantID)
 
 	// Parse query parameters
 	startTimeStr := c.DefaultQuery("start_time", "")
@@ -208,7 +200,7 @@ func (s *Server) getCostTrends(c *gin.Context) {
 
 	pool := s.timescaleDB.GetTimescalePool().(*pgxpool.Pool)
 	costSvc := services.NewCostService(pool)
-	results, err := costSvc.CostTrends(c.Request.Context(), tenantID, startTime, endTime, interval)
+	results, err := costSvc.CostTrends(c.Request.Context(), int64(tenantID), startTime, endTime, interval)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

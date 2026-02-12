@@ -152,14 +152,42 @@ export function useCostData(): UseCostDataResult {
 
       // Parse responses - handle both success and empty data gracefully
       const toplineData = toplineRes.ok ? await toplineRes.json() : null
-      const allocationsData = allocationsRes.ok ? await allocationsRes.json() : { allocations: [] }
+      const allocationsData = allocationsRes.ok ? await allocationsRes.json() : null
       const trendsData = trendsRes.ok ? await trendsRes.json() : { trends: [] }
       const utilizationData = utilizationRes.ok ? await utilizationRes.json() : { metrics: [] }
       const recommendationsData = recommendationsRes.ok ? await recommendationsRes.json() : { recommendations: [] }
 
+      // Transform API response to frontend format
+      // API returns: { code, status, data: { totalCost, totalCPUCost, totalRAMCost, avgEfficiency, window } }
+      const topline: ToplineSummary | null = toplineData?.data ? {
+        total_cost: toplineData.data.totalCost || 0,
+        cpu_cost: toplineData.data.totalCPUCost || 0,
+        memory_cost: toplineData.data.totalRAMCost || 0,
+        efficiency: toplineData.data.avgEfficiency || 0,
+        window: toplineData.data.window || window,
+      } : null
+
+      // API returns: { code, status, data: { items: [...], totalCost, ... } }
+      // items have: { name, cpuCost, ramCost, totalCost, cpuCoreHours, ramByteHours, totalEfficiency }
+      const namespaceAllocations: NamespaceAllocation[] = (allocationsData?.data?.items || []).map((item: {
+        name: string
+        cpuCost: number
+        ramCost: number
+        totalCost: number
+        cpuCoreHours: number
+        ramByteHours: number
+      }) => ({
+        namespace: item.name,
+        cpu_cost: item.cpuCost || 0,
+        memory_cost: item.ramCost || 0,
+        total_cost: item.totalCost || 0,
+        cpu_hours: item.cpuCoreHours || 0,
+        memory_gb_hours: (item.ramByteHours || 0) / (1024 * 1024 * 1024), // Convert bytes to GB
+      }))
+
       setState({
-        topline: toplineData?.summary || null,
-        namespaceAllocations: allocationsData?.allocations || [],
+        topline,
+        namespaceAllocations,
         trends: trendsData?.trends || [],
         utilization: utilizationData?.metrics || [],
         recommendations: (recommendationsData?.recommendations || []).filter(
