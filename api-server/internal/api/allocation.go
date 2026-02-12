@@ -99,9 +99,9 @@ func (s *Server) getAllocation(c *gin.Context) {
 		}
 	}
 
-	// Get allocations
+	// Get allocations with dynamic pricing
 	pool := s.timescaleDB.GetTimescalePool().(*pgxpool.Pool)
-	allocSvc := services.NewAllocationService(pool)
+	allocSvc := services.NewAllocationServiceWithPricing(pool, s.postgresDB.GetPostgresDB())
 	response, err := allocSvc.GetAllocations(c.Request.Context(), int64(tenantID), params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -149,9 +149,9 @@ func (s *Server) getAllocationSummary(c *gin.Context) {
 	// Parse filters
 	params.Filters = c.QueryArray("filter")
 
-	// Get allocations
+	// Get allocations with dynamic pricing
 	pool := s.timescaleDB.GetTimescalePool().(*pgxpool.Pool)
-	allocSvc := services.NewAllocationService(pool)
+	allocSvc := services.NewAllocationServiceWithPricing(pool, s.postgresDB.GetPostgresDB())
 	response, err := allocSvc.GetAllocations(c.Request.Context(), int64(tenantID), params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -229,9 +229,9 @@ func (s *Server) getAllocationTopline(c *gin.Context) {
 		ShareIdle:  c.Query("shareIdle"),
 	}
 
-	// Get allocations
+	// Get allocations with dynamic pricing
 	pool := s.timescaleDB.GetTimescalePool().(*pgxpool.Pool)
-	allocSvc := services.NewAllocationService(pool)
+	allocSvc := services.NewAllocationServiceWithPricing(pool, s.postgresDB.GetPostgresDB())
 	response, err := allocSvc.GetAllocations(c.Request.Context(), int64(tenantID), params)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

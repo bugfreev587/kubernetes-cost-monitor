@@ -147,6 +147,12 @@ func (s *Server) setupRoutes() {
 		// User management - view team members
 		dashboard.GET("/users", s.listUsersHandler())
 		dashboard.GET("/users/:user_id", s.getUserHandler())
+
+		// Pricing - read only
+		dashboard.GET("/pricing/configs", s.listPricingConfigs)
+		dashboard.GET("/pricing/configs/:id", s.getPricingConfig)
+		dashboard.GET("/pricing/presets", s.getPricingPresets)
+		dashboard.GET("/clusters/:name/pricing", s.getClusterPricing)
 	}
 
 	// ===========================================
@@ -185,6 +191,16 @@ func (s *Server) setupRoutes() {
 		admin.PATCH("/users/:user_id/unsuspend", s.unsuspendUserHandler())
 		admin.PATCH("/users/:user_id/role", s.updateUserRoleHandler())
 		admin.DELETE("/users/:user_id", s.removeUserHandler())
+
+		// Pricing configuration management
+		admin.POST("/pricing/configs", s.createPricingConfig)
+		admin.PUT("/pricing/configs/:id", s.updatePricingConfig)
+		admin.DELETE("/pricing/configs/:id", s.deletePricingConfig)
+		admin.POST("/pricing/configs/:id/rates", s.addPricingRate)
+		admin.PUT("/pricing/rates/:id", s.updatePricingRate)
+		admin.DELETE("/pricing/rates/:id", s.deletePricingRate)
+		admin.PUT("/clusters/:name/pricing", s.setClusterPricing)
+		admin.POST("/pricing/import/:provider", s.importProviderPricing)
 	}
 
 	// ===========================================

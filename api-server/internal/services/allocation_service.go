@@ -10,15 +10,73 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/gorm"
 )
 
 // AllocationService handles unified cost allocation queries (OpenCost-compatible)
 type AllocationService struct {
-	pool *pgxpool.Pool
+	pool       *pgxpool.Pool
+	postgresDB *gorm.DB
+	pricingSvc *PricingService
 }
 
+// NewAllocationService creates an allocation service with default pricing
 func NewAllocationService(pool *pgxpool.Pool) *AllocationService {
 	return &AllocationService{pool: pool}
+}
+
+// NewAllocationServiceWithPricing creates an allocation service with dynamic pricing support
+func NewAllocationServiceWithPricing(pool *pgxpool.Pool, postgresDB *gorm.DB) *AllocationService {
+	return &AllocationService{
+		pool:       pool,
+		postgresDB: postgresDB,
+		pricingSvc: NewPricingService(postgresDB),
+	}
+}
+
+// getClusterPricing returns effective pricing for a cluster
+func (s *AllocationService) getClusterPricing(ctx context.Context, tenantID int64, clusterName string, asOf time.Time) (cpuRate, memRate float64) {
+	// Default rates
+	cpuRate = DefaultCPUCostPerCoreHour
+	memRate = DefaultRAMCostPerGBHour
+
+	// If pricing service is available, get cluster-specific pricing
+	if s.pricingSvc != nil {
+		pricing, err := s.pricingSvc.GetEffectiveRates(ctx, uint(tenantID), clusterName, asOf)
+		if err == nil && pricing != nil {
+			cpuRate = pricing.CPUPerCoreHour
+			memRate = pricing.MemoryPerGBHour
+		}
+	}
+
+	return cpuRate, memRate
+}
+
+// getNodePricing returns pricing for a specific node (with instance-type overrides)
+func (s *AllocationService) getNodePricing(ctx context.Context, tenantID int64, clusterName, nodeName string, asOf time.Time) (cpuRate, memRate float64, hasOverride bool) {
+	// Start with cluster defaults
+	cpuRate, memRate = s.getClusterPricing(ctx, tenantID, clusterName, asOf)
+	hasOverride = false
+
+	// If pricing service is available, check for node-specific overrides
+	if s.pricingSvc != nil {
+		pricing, err := s.pricingSvc.GetEffectiveRates(ctx, uint(tenantID), clusterName, asOf)
+		if err == nil && pricing != nil && pricing.InstancePricing != nil {
+			// Check for node-specific pricing
+			if nodePricing, ok := pricing.InstancePricing[nodeName]; ok {
+				if nodePricing.CPUPerCoreHour > 0 {
+					cpuRate = nodePricing.CPUPerCoreHour
+					hasOverride = true
+				}
+				if nodePricing.MemoryPerGBHour > 0 {
+					memRate = nodePricing.MemoryPerGBHour
+					hasOverride = true
+				}
+			}
+		}
+	}
+
+	return cpuRate, memRate, hasOverride
 }
 
 // AllocationParams represents query parameters for the allocation API
@@ -527,8 +585,11 @@ func (s *AllocationService) queryAllocations(ctx context.Context, tenantID int64
 
 		cpuCoreHours := effectiveCPU * durationHours
 		ramByteHours := effectiveRAM * durationHours
-		cpuCost := cpuCoreHours * DefaultCPUCostPerCoreHour
-		ramCost := (ramByteHours / 1024 / 1024 / 1024) * DefaultRAMCostPerGBHour
+
+		// Get pricing rates (dynamic or default)
+		cpuRate, memRate, _ := s.getNodePricing(ctx, tenantID, clusterName, nodeName, startTime)
+		cpuCost := cpuCoreHours * cpuRate
+		ramCost := (ramByteHours / 1024 / 1024 / 1024) * memRate
 		totalCost := cpuCost + ramCost
 
 		// Calculate efficiencies

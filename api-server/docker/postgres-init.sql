@@ -74,6 +74,69 @@ CREATE TABLE IF NOT EXISTS recommendations (
   status TEXT DEFAULT 'open'
 );
 
+-- ============================
+-- Cloud Pricing Configuration Tables
+-- ============================
+
+-- Pricing configurations for different cloud providers/regions
+CREATE TABLE IF NOT EXISTS pricing_configs (
+  id BIGSERIAL PRIMARY KEY,
+  tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  provider VARCHAR(20) NOT NULL,  -- aws, gcp, azure, oci, custom
+  region VARCHAR(50),
+  is_default BOOLEAN DEFAULT false,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(tenant_id, name)
+);
+
+-- Ensure only one default per tenant
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pricing_configs_default
+  ON pricing_configs(tenant_id) WHERE is_default = true;
+
+-- Pricing rates for each configuration
+CREATE TABLE IF NOT EXISTS pricing_rates (
+  id BIGSERIAL PRIMARY KEY,
+  config_id BIGINT NOT NULL REFERENCES pricing_configs(id) ON DELETE CASCADE,
+  resource_type VARCHAR(20) NOT NULL,  -- cpu, memory, gpu, storage, network
+  pricing_tier VARCHAR(20) DEFAULT 'on_demand',  -- on_demand, spot, reserved_1yr, reserved_3yr
+  instance_family VARCHAR(50),  -- m5, c5, n1-standard, e2 (NULL = default for all)
+  unit VARCHAR(20) NOT NULL,  -- core-hour, gb-hour, gpu-hour
+  cost_per_unit DECIMAL(12,8) NOT NULL,
+  effective_from DATE DEFAULT CURRENT_DATE,
+  effective_to DATE,  -- NULL = currently active
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pricing_rates_config ON pricing_rates(config_id);
+CREATE INDEX IF NOT EXISTS idx_pricing_rates_effective ON pricing_rates(config_id, effective_from, effective_to);
+
+-- Cluster to pricing config mapping
+CREATE TABLE IF NOT EXISTS cluster_pricing (
+  cluster_name VARCHAR(255) NOT NULL,
+  tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  config_id BIGINT NOT NULL REFERENCES pricing_configs(id) ON DELETE CASCADE,
+  created_at timestamptz DEFAULT now(),
+  PRIMARY KEY(cluster_name, tenant_id)
+);
+
+-- Node-level pricing overrides (for mixed instance types/spot nodes)
+CREATE TABLE IF NOT EXISTS node_pricing (
+  id BIGSERIAL PRIMARY KEY,
+  node_name VARCHAR(255) NOT NULL,
+  cluster_name VARCHAR(255) NOT NULL,
+  tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  instance_type VARCHAR(50),
+  pricing_tier VARCHAR(20) DEFAULT 'on_demand',
+  hourly_cost_override DECIMAL(10,6),  -- Direct cost override if known
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(node_name, cluster_name, tenant_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_node_pricing_cluster ON node_pricing(cluster_name, tenant_id);
+
 \echo "k8s_cost database initialized."
 
 -- ============================
