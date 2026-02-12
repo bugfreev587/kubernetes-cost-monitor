@@ -334,6 +334,20 @@ func (s *PricingService) ListClusterPricing(ctx context.Context, tenantID uint) 
 	return cps, err
 }
 
+// DeleteClusterPricing removes pricing config assignment for a cluster
+func (s *PricingService) DeleteClusterPricing(ctx context.Context, tenantID uint, clusterName string) error {
+	result := s.db.Where("tenant_id = ? AND cluster_name = ?", tenantID, clusterName).
+		Delete(&models.ClusterPricing{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	s.cache.InvalidateTenant(tenantID)
+	return nil
+}
+
 // SetNodePricing sets pricing override for a node
 func (s *PricingService) SetNodePricing(ctx context.Context, nodePricing *models.NodePricing) error {
 	nodePricing.UpdatedAt = time.Now()

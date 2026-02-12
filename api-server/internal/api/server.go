@@ -153,6 +153,7 @@ func (s *Server) setupRoutes() {
 		dashboard.GET("/pricing/configs/:id", s.getPricingConfig)
 		dashboard.GET("/pricing/presets", s.getPricingPresets)
 		dashboard.GET("/clusters/:name/pricing", s.getClusterPricing)
+		dashboard.GET("/pricing/cluster-assignments", s.listClusterPricings)
 	}
 
 	// ===========================================
@@ -200,6 +201,7 @@ func (s *Server) setupRoutes() {
 		admin.PUT("/pricing/rates/:id", s.updatePricingRate)
 		admin.DELETE("/pricing/rates/:id", s.deletePricingRate)
 		admin.PUT("/clusters/:name/pricing", s.setClusterPricing)
+		admin.DELETE("/clusters/:name/pricing", s.deleteClusterPricing)
 		admin.POST("/pricing/import/:provider", s.importProviderPricing)
 	}
 

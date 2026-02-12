@@ -25,6 +25,7 @@ export default function PricingConfigPage() {
   const {
     configs,
     presets,
+    clusterPricings,
     loading,
     error: fetchError,
     refresh,
@@ -34,6 +35,8 @@ export default function PricingConfigPage() {
     addRate,
     deleteRate,
     importProviderDefaults,
+    setClusterPricing,
+    deleteClusterPricing,
   } = usePricingConfig()
 
   // UI State
@@ -42,6 +45,9 @@ export default function PricingConfigPage() {
   const [showImportModal, setShowImportModal] = useState(false)
   const [showAddRateModal, setShowAddRateModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null)
+  const [showAssignModal, setShowAssignModal] = useState(false)
+  const [showRemoveAssignConfirm, setShowRemoveAssignConfirm] = useState<string | null>(null)
+  const [assignForm, setAssignForm] = useState({ clusterName: '', configId: 0 })
 
   // Messages
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -185,6 +191,36 @@ export default function PricingConfigPage() {
       resource_type: type,
       unit: defaultUnits[type],
     })
+  }
+
+  const handleAssignCluster = async () => {
+    if (!assignForm.clusterName.trim()) {
+      showError('Please enter a cluster name')
+      return
+    }
+    if (!assignForm.configId) {
+      showError('Please select a pricing configuration')
+      return
+    }
+
+    try {
+      await setClusterPricing(assignForm.clusterName, assignForm.configId)
+      showSuccess(`Pricing assigned to cluster "${assignForm.clusterName}"`)
+      setShowAssignModal(false)
+      setAssignForm({ clusterName: '', configId: 0 })
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to assign pricing')
+    }
+  }
+
+  const handleRemoveAssignment = async (clusterName: string) => {
+    try {
+      await deleteClusterPricing(clusterName)
+      showSuccess(`Pricing assignment removed from cluster "${clusterName}"`)
+      setShowRemoveAssignConfirm(null)
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to remove assignment')
+    }
   }
 
   const formatCurrency = (value: number) => {
@@ -402,6 +438,62 @@ export default function PricingConfigPage() {
               )}
             </div>
           </div>
+
+          {/* Cluster Pricing Assignments */}
+          <div className="cluster-assignments-section">
+            <div className="section-header">
+              <div>
+                <h2>Cluster Pricing Assignments</h2>
+                <p className="section-description">Assign pricing configurations to specific clusters for accurate cost calculations.</p>
+              </div>
+              <button className="btn btn-primary" onClick={() => setShowAssignModal(true)}>
+                Assign Cluster
+              </button>
+            </div>
+
+            {clusterPricings.length === 0 ? (
+              <div className="empty-state">
+                <p>No clusters have been assigned a pricing configuration yet.</p>
+                <p>Unassigned clusters will use the default configuration.</p>
+              </div>
+            ) : (
+              <table className="rates-table">
+                <thead>
+                  <tr>
+                    <th>Cluster Name</th>
+                    <th>Pricing Configuration</th>
+                    <th>Provider</th>
+                    <th>Assigned</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clusterPricings.map(cp => (
+                    <tr key={cp.cluster_name}>
+                      <td className="cluster-name-cell">{cp.cluster_name}</td>
+                      <td>{cp.config?.name || `Config #${cp.config_id}`}</td>
+                      <td>
+                        {cp.config && (
+                          <span className={`provider-badge ${cp.config.provider}`}>
+                            {cp.config.provider.toUpperCase()}
+                          </span>
+                        )}
+                      </td>
+                      <td>{new Date(cp.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <button
+                          className="btn btn-danger btn-small"
+                          onClick={() => setShowRemoveAssignConfirm(cp.cluster_name)}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
 
         {/* Create Config Modal */}
@@ -597,6 +689,67 @@ export default function PricingConfigPage() {
                 </button>
                 <button className="btn btn-danger" onClick={() => handleDeleteConfig(showDeleteConfirm)}>
                   Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Assign Pricing to Cluster Modal */}
+        {showAssignModal && (
+          <div className="modal-overlay" onClick={() => setShowAssignModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <h2>Assign Pricing to Cluster</h2>
+              <p className="modal-description">
+                Assign a pricing configuration to a cluster. This overrides the default pricing for that cluster.
+              </p>
+              <div className="form-group">
+                <label>Cluster Name</label>
+                <input
+                  type="text"
+                  value={assignForm.clusterName}
+                  onChange={e => setAssignForm({ ...assignForm, clusterName: e.target.value })}
+                  placeholder="e.g., production-cluster"
+                />
+              </div>
+              <div className="form-group">
+                <label>Pricing Configuration</label>
+                <select
+                  value={assignForm.configId}
+                  onChange={e => setAssignForm({ ...assignForm, configId: parseInt(e.target.value) || 0 })}
+                >
+                  <option value={0}>Select a configuration...</option>
+                  {configs.map(config => (
+                    <option key={config.id} value={config.id}>
+                      {config.name} ({config.provider.toUpperCase()}{config.region ? ` - ${config.region}` : ''})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="modal-actions">
+                <button className="btn btn-secondary" onClick={() => setShowAssignModal(false)}>
+                  Cancel
+                </button>
+                <button className="btn btn-primary" onClick={handleAssignCluster}>
+                  Assign
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Remove Assignment Confirmation Modal */}
+        {showRemoveAssignConfirm !== null && (
+          <div className="modal-overlay" onClick={() => setShowRemoveAssignConfirm(null)}>
+            <div className="modal-content modal-small" onClick={e => e.stopPropagation()}>
+              <h2>Remove Assignment</h2>
+              <p>Are you sure you want to remove the pricing assignment from cluster "{showRemoveAssignConfirm}"? The cluster will fall back to the default pricing configuration.</p>
+              <div className="modal-actions">
+                <button className="btn btn-secondary" onClick={() => setShowRemoveAssignConfirm(null)}>
+                  Cancel
+                </button>
+                <button className="btn btn-danger" onClick={() => handleRemoveAssignment(showRemoveAssignConfirm)}>
+                  Remove
                 </button>
               </div>
             </div>

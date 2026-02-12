@@ -32,12 +32,14 @@ interface UsePricingConfigResult {
   importProviderDefaults: (provider: CloudProvider, name: string, region?: string) => Promise<PricingConfig>
   setClusterPricing: (clusterName: string, configId: number) => Promise<ClusterPricing>
   getClusterPricing: (clusterName: string) => Promise<ClusterPricing | null>
+  fetchClusterPricings: () => Promise<void>
+  deleteClusterPricing: (clusterName: string) => Promise<void>
 }
 
 export function usePricingConfig(): UsePricingConfigResult {
   const [configs, setConfigs] = useState<PricingConfig[]>([])
   const [presets, setPresets] = useState<ProviderPresets | null>(null)
-  const [clusterPricings] = useState<ClusterPricing[]>([])
+  const [clusterPricings, setClusterPricings] = useState<ClusterPricing[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -88,18 +90,35 @@ export function usePricingConfig(): UsePricingConfigResult {
     }
   }, [getHeaders])
 
+  // Fetch cluster pricing assignments
+  const fetchClusterPricings = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_SERVER_URL}/v1/pricing/cluster-assignments`, {
+        headers: getHeaders(),
+      })
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to fetch cluster pricings')
+      }
+      const data = await response.json()
+      setClusterPricings(data.cluster_pricings || [])
+    } catch (err) {
+      throw err
+    }
+  }, [getHeaders])
+
   // Refresh all data
   const refresh = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      await Promise.all([fetchConfigs(), fetchPresets()])
+      await Promise.all([fetchConfigs(), fetchPresets(), fetchClusterPricings()])
     } catch (err) {
       setError(handleError(err))
     } finally {
       setLoading(false)
     }
-  }, [fetchConfigs, fetchPresets])
+  }, [fetchConfigs, fetchPresets, fetchClusterPricings])
 
   // Initial load
   useEffect(() => {
@@ -231,8 +250,22 @@ export function usePricingConfig(): UsePricingConfigResult {
       throw new Error(respData.error || 'Failed to set cluster pricing')
     }
     const result = await response.json()
+    await fetchClusterPricings()
     return result.cluster_pricing
-  }, [getHeaders])
+  }, [getHeaders, fetchClusterPricings])
+
+  // Delete cluster pricing assignment
+  const deleteClusterPricing = useCallback(async (clusterName: string): Promise<void> => {
+    const response = await fetch(`${API_SERVER_URL}/v1/admin/clusters/${encodeURIComponent(clusterName)}/pricing`, {
+      method: 'DELETE',
+      headers: getHeaders(),
+    })
+    if (!response.ok) {
+      const respData = await response.json()
+      throw new Error(respData.error || 'Failed to delete cluster pricing')
+    }
+    await fetchClusterPricings()
+  }, [getHeaders, fetchClusterPricings])
 
   // Get cluster pricing
   const getClusterPricing = useCallback(async (clusterName: string): Promise<ClusterPricing | null> => {
@@ -268,5 +301,7 @@ export function usePricingConfig(): UsePricingConfigResult {
     importProviderDefaults,
     setClusterPricing,
     getClusterPricing,
+    fetchClusterPricings,
+    deleteClusterPricing,
   }
 }

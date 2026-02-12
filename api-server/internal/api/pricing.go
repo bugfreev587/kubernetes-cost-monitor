@@ -471,6 +471,51 @@ func (s *Server) getClusterPricing(c *gin.Context) {
 	})
 }
 
+// GET /v1/pricing/cluster-assignments
+// List all cluster pricing assignments for the tenant
+func (s *Server) listClusterPricings(c *gin.Context) {
+	tenantID, ok := middleware.GetTenantIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no tenant context"})
+		return
+	}
+
+	pricingSvc := s.getPricingService()
+	cps, err := pricingSvc.ListClusterPricing(c.Request.Context(), tenantID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"cluster_pricings": cps,
+	})
+}
+
+// DELETE /v1/admin/clusters/:name/pricing
+// Remove pricing config assignment from a cluster
+func (s *Server) deleteClusterPricing(c *gin.Context) {
+	tenantID, ok := middleware.GetTenantIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "no tenant context"})
+		return
+	}
+
+	clusterName := c.Param("name")
+	if clusterName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cluster name required"})
+		return
+	}
+
+	pricingSvc := s.getPricingService()
+	if err := pricingSvc.DeleteClusterPricing(c.Request.Context(), tenantID, clusterName); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "cluster pricing not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "cluster pricing removed"})
+}
+
 // GET /v1/pricing/presets
 // Get default pricing presets for all providers
 func (s *Server) getPricingPresets(c *gin.Context) {
