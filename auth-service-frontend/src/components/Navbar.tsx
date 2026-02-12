@@ -97,13 +97,22 @@ export default function Navbar() {
                     Profile
                   </Link>
                   {canAccessManagement && (
-                    <Link
-                      to="/management"
-                      className="user-menu-item"
-                      onClick={() => setShowUserMenu(false)}
-                    >
-                      Management
-                    </Link>
+                    <>
+                      <Link
+                        to="/management"
+                        className="user-menu-item"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        Management
+                      </Link>
+                      <Link
+                        to="/pricing-config"
+                        className="user-menu-item"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        Pricing Config
+                      </Link>
+                    </>
                   )}
                   <div className="user-menu-divider"></div>
                   <SignOutButton>

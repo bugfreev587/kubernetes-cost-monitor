@@ -9,6 +9,7 @@ import ProfilePage from './pages/ProfilePage'
 import FeaturesPage from './pages/FeaturesPage'
 import PricingPage from './pages/PricingPage'
 import ManagementPage from './pages/ManagementPage'
+import PricingConfigPage from './pages/PricingConfigPage'
 import APIKeyModal from './components/APIKeyModal'
 import AutoSignOutWarning from './components/AutoSignOutWarning'
 import { useUserSync } from './hooks/useUserSync'
@@ -194,6 +195,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ManagementPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pricing-config"
+            element={
+              <ProtectedRoute>
+                <PricingConfigPage />
               </ProtectedRoute>
             }
           />
