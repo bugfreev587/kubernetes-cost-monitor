@@ -433,6 +433,124 @@
   margin-right: auto;
 }
 
+/* Namespace Filter */
+.namespace-filter {
+  position: relative;
+}
+
+.namespace-filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #f3f4f6;
+  border: none;
+  border-radius: 6px;
+  color: #374151;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.namespace-filter-trigger:hover {
+  background: #e5e7eb;
+}
+
+.namespace-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  min-width: 240px;
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: 100;
+  padding: 0.5rem 0;
+}
+
+.namespace-filter-actions {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 0.25rem;
+}
+
+.namespace-filter-actions button {
+  background: none;
+  border: none;
+  color: #646cff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 500;
+}
+
+.namespace-filter-actions button:hover {
+  text-decoration: underline;
+}
+
+.namespace-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: #374151;
+  transition: background 0.15s;
+}
+
+.namespace-filter-item:hover {
+  background: #f9fafb;
+}
+
+.namespace-filter-item input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.namespace-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.namespace-dot.system {
+  background: #6b7280;
+}
+
+.namespace-dot.app {
+  background: #059669;
+}
+
+.namespace-filter-name {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 0.825rem;
+}
+
+/* Chart Filter Notice */
+.chart-filter-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #eff6ff;
+  border-radius: 6px;
+  color: #3b82f6;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.chart-filter-notice svg {
+  flex-shrink: 0;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .summary-cards {
@@ -466,5 +584,10 @@
   .recommendation-resources {
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  .namespace-filter-dropdown {
+    right: auto;
+    left: 0;
   }
 }

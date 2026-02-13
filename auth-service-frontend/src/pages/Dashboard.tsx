@@ -1,3 +1,4 @@
+import { useState, useMemo, useEffect } from 'react'
 import { useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
@@ -9,6 +10,7 @@ import {
   CostTrendChart,
   TopCostDriversTable,
   RecommendationsList,
+  NamespaceFilter,
 } from '../components/dashboard'
 import '../App.css'
 import './Dashboard.css'
@@ -30,6 +32,43 @@ export default function Dashboard() {
     applyRecommendation,
     dismissRecommendation,
   } = useCostData()
+
+  const [selectedNamespaces, setSelectedNamespaces] = useState<string[]>([])
+
+  // Reset filter when time window changes
+  useEffect(() => {
+    setSelectedNamespaces([])
+  }, [window])
+
+  const availableNamespaces = useMemo(
+    () => namespaceAllocations.map(a => a.namespace),
+    [namespaceAllocations],
+  )
+
+  const isFiltering = selectedNamespaces.length > 0 && selectedNamespaces.length < availableNamespaces.length
+
+  const filteredAllocations = useMemo(() => {
+    if (!isFiltering) return namespaceAllocations
+    return namespaceAllocations.filter(a => selectedNamespaces.includes(a.namespace))
+  }, [namespaceAllocations, selectedNamespaces, isFiltering])
+
+  const filteredTopline = useMemo(() => {
+    if (!isFiltering || !topline) return topline
+    const total_cost = filteredAllocations.reduce((s, a) => s + a.total_cost, 0)
+    const cpu_cost = filteredAllocations.reduce((s, a) => s + a.cpu_cost, 0)
+    const memory_cost = filteredAllocations.reduce((s, a) => s + a.memory_cost, 0)
+    return { ...topline, total_cost, cpu_cost, memory_cost }
+  }, [topline, filteredAllocations, isFiltering])
+
+  const filteredUtilization = useMemo(() => {
+    if (!isFiltering) return utilization
+    return utilization.filter(u => selectedNamespaces.includes(u.namespace))
+  }, [utilization, selectedNamespaces, isFiltering])
+
+  const filteredRecommendations = useMemo(() => {
+    if (!isFiltering) return recommendations
+    return recommendations.filter(r => selectedNamespaces.includes(r.namespace))
+  }, [recommendations, selectedNamespaces, isFiltering])
 
   if (!isLoaded) {
     return (
@@ -135,24 +174,29 @@ export default function Dashboard() {
                 </svg>
                 Refresh
               </button>
+              <NamespaceFilter
+                namespaces={availableNamespaces}
+                selected={selectedNamespaces}
+                onChange={setSelectedNamespaces}
+              />
               <TimeRangeSelector value={window} onChange={setWindow} />
             </div>
           </div>
 
           {/* Summary Cards */}
-          <SummaryCards topline={topline} window={window} />
+          <SummaryCards topline={filteredTopline} window={window} />
 
           {/* Charts Row */}
           <div className="dashboard-charts">
-            <CostByNamespaceChart data={namespaceAllocations} />
-            <CostTrendChart data={trends} />
+            <CostByNamespaceChart data={filteredAllocations} />
+            <CostTrendChart data={trends} filtered={isFiltering} />
           </div>
 
           {/* Tables Row */}
           <div className="dashboard-tables">
-            <TopCostDriversTable data={utilization} />
+            <TopCostDriversTable data={filteredUtilization} />
             <RecommendationsList
-              data={recommendations}
+              data={filteredRecommendations}
               onApply={applyRecommendation}
               onDismiss={dismissRecommendation}
             />

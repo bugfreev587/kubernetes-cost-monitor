@@ -12,6 +12,7 @@ import type { CostTrend } from '../../types/cost'
 
 interface CostTrendChartProps {
   data: CostTrend[]
+  filtered?: boolean
 }
 
 function formatCurrency(value: number): string {
@@ -28,7 +29,7 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-export default function CostTrendChart({ data }: CostTrendChartProps) {
+export default function CostTrendChart({ data, filtered }: CostTrendChartProps) {
   if (data.length === 0) {
     return (
       <div className="chart-section">
@@ -46,6 +47,16 @@ export default function CostTrendChart({ data }: CostTrendChartProps) {
   return (
     <div className="chart-section">
       <h3>Cost Trend</h3>
+      {filtered && (
+        <div className="chart-filter-notice">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          Showing aggregate trend across all namespaces
+        </div>
+      )}
       <div className="chart-container">
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
