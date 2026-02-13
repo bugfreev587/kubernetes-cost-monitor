@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@clerk/clerk-react'
+import { useUserSync } from './useUserSync'
 
 const API_SERVER_URL = import.meta.env.VITE_API_SERVER_URL || 'http://localhost:8080'
 
@@ -12,6 +13,7 @@ interface PricingPlanStatus {
 
 export function usePricingPlan(): PricingPlanStatus {
   const { isSignedIn, isLoaded } = useAuth()
+  const { isSynced, tenantId, userId } = useUserSync()
   const [hasPlan, setHasPlan] = useState(false)
   const [planName, setPlanName] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -31,29 +33,15 @@ export function usePricingPlan(): PricingPlanStatus {
       return
     }
 
-    // Get tenant_id from localStorage (set by useUserSync hook)
-    const storedTenantId = localStorage.getItem('tenant_id')
-    const tenantId = storedTenantId ? parseInt(storedTenantId, 10) : null
-
-    if (!tenantId) {
-      // User hasn't been synced yet, wait for sync
-      setIsLoading(false)
-      setHasPlan(false)
+    if (!isSynced || !tenantId || !userId) {
+      // User sync hasn't completed yet, keep loading
+      setIsLoading(true)
       return
     }
 
     const fetchPricingPlan = async () => {
       setIsLoading(true)
       setError(null)
-
-      // Get user_id from localStorage for authentication
-      const userId = localStorage.getItem('user_id')
-      if (!userId) {
-        // User not synced yet, can't make authenticated request
-        setIsLoading(false)
-        setHasPlan(false)
-        return
-      }
 
       try {
         const response = await fetch(`${API_SERVER_URL}/v1/admin/tenants/${tenantId}/pricing-plan`, {
@@ -92,8 +80,7 @@ export function usePricingPlan(): PricingPlanStatus {
     }
 
     fetchPricingPlan()
-  }, [isSignedIn, isLoaded])
+  }, [isSignedIn, isLoaded, isSynced, tenantId, userId])
 
   return { hasPlan, planName, isLoading, error }
 }
-
