@@ -8,9 +8,10 @@ export default function SignInPage() {
       <div className="auth-card">
         <h1>Welcome Back</h1>
         <p className="auth-subtitle">Sign in to your account</p>
-        <SignIn 
+        <SignIn
           routing="virtual"
           signUpUrl="/sign-up"
+          forceRedirectUrl="/dashboard"
         />
         <p className="auth-switch">
           Don't have an account? <Link to="/sign-up">Sign up</Link>

@@ -12,7 +12,7 @@ if (!publishableKey) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ClerkProvider publishableKey={publishableKey} afterSignInUrl="/dashboard" afterSignUpUrl="/pricing">
+    <ClerkProvider publishableKey={publishableKey} signInFallbackRedirectUrl="/dashboard" signUpFallbackRedirectUrl="/pricing">
       <App />
     </ClerkProvider>
   </StrictMode>
