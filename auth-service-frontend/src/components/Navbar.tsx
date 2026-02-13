@@ -42,9 +42,6 @@ export default function Navbar() {
 
         {/* Center Navigation */}
         <div className="navbar-center">
-          <Link to="/dashboard" className="navbar-link">
-            Dashboard
-          </Link>
           <Link to="/features" className="navbar-link">
             Features
           </Link>
@@ -58,6 +55,10 @@ export default function Navbar() {
           {!isLoaded ? (
             <div className="navbar-loading">Loading...</div>
           ) : isSignedIn ? (
+            <>
+            <Link to="/dashboard" className="navbar-link">
+              Dashboard
+            </Link>
             <div className="user-menu-container" ref={menuRef}>
               <button
                 className="user-menu-button"
@@ -123,6 +124,7 @@ export default function Navbar() {
                 </div>
               )}
             </div>
+            </>
           ) : (
             <>
               <Link to="/sign-in" className="navbar-button navbar-button-secondary">
