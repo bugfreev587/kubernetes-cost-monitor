@@ -14,9 +14,9 @@ function formatCurrency(value: number): string {
 }
 
 function getUtilizationColor(utilization: number): string {
-  if (utilization >= 80) return '#059669' // green - well utilized
-  if (utilization >= 50) return '#d97706' // amber - moderate
-  return '#dc2626' // red - underutilized
+  if (utilization > 100) return '#dc2626' // red - over-committed
+  if (utilization >= 70) return '#d97706' // orange - cautious
+  return '#059669' // green - safe
 }
 
 export default function TopCostDriversTable({ data }: TopCostDriversTableProps) {
