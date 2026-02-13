@@ -8,8 +8,8 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
   }).format(value)
 }
 
@@ -45,7 +45,7 @@ export default function TopCostDriversTable({ data }: TopCostDriversTableProps) 
               <th>Namespace</th>
               <th>CPU Util</th>
               <th>Memory Util</th>
-              <th>Est. Cost</th>
+              <th>Est. Cost/hr</th>
             </tr>
           </thead>
           <tbody>

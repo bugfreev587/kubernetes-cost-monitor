@@ -223,18 +223,22 @@ export function useCostData(): UseCostDataResult {
         avg_cpu_request_millicores?: number
         avg_memory_usage_bytes?: number
         avg_memory_request_bytes?: number
-      }) => ({
-        pod_name: m.pod_name || '',
-        namespace: m.namespace || '',
-        cluster: m.cluster_name || '',
-        cpu_utilization: m.cpu_utilization_percent || 0,
-        memory_utilization: m.memory_utilization_percent || 0,
-        cpu_requested: m.avg_cpu_request_millicores || 0,
-        cpu_used: m.avg_cpu_usage_millicores || 0,
-        memory_requested: m.avg_memory_request_bytes || 0,
-        memory_used: m.avg_memory_usage_bytes || 0,
-        estimated_cost: 0, // Not available from this endpoint; computed elsewhere
-      }))
+      }) => {
+        const cpuCores = (m.avg_cpu_request_millicores || 0) / 1000
+        const ramGB = (m.avg_memory_request_bytes || 0) / (1024 * 1024 * 1024)
+        return {
+          pod_name: m.pod_name || '',
+          namespace: m.namespace || '',
+          cluster: m.cluster_name || '',
+          cpu_utilization: m.cpu_utilization_percent || 0,
+          memory_utilization: m.memory_utilization_percent || 0,
+          cpu_requested: m.avg_cpu_request_millicores || 0,
+          cpu_used: m.avg_cpu_usage_millicores || 0,
+          memory_requested: m.avg_memory_request_bytes || 0,
+          memory_used: m.avg_memory_usage_bytes || 0,
+          estimated_cost: cpuCores * 0.031611 + ramGB * 0.004237, // $/hour estimate
+        }
+      })
 
       // Transform recommendations from API format
       // API returns array of: { ID, PodName, Namespace, ClusterName, ResourceType, CurrentRequest, RecommendedRequest, PotentialSavingsUSD, Status, CreatedAt, Reason }
