@@ -24,6 +24,12 @@ function formatCurrency(value: number): string {
   }).format(value)
 }
 
+function formatTickValue(value: number): string {
+  if (value >= 1) return `$${value.toFixed(0)}`
+  if (value >= 0.01) return `$${value.toFixed(2)}`
+  return `$${value.toFixed(3)}`
+}
+
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -44,9 +50,25 @@ export default function CostTrendChart({ data, filtered }: CostTrendChartProps) 
     formattedDate: formatDate(item.date),
   }))
 
+  const allValues = data.flatMap((item) => [item.cost, item.cpu_cost, item.memory_cost])
+  const minValue = Math.min(...allValues)
+  const maxValue = Math.max(...allValues)
+  const range = maxValue - minValue
+  const padding = range > 0 ? range * 0.2 : maxValue * 0.2
+  const paddedMin = Math.max(0, minValue - padding)
+  const paddedMax = maxValue + padding
+
+  const costValues = data.map((item) => item.cost)
+  const minCost = Math.min(...costValues)
+  const maxCost = Math.max(...costValues)
+
   return (
     <div className="chart-section">
       <h3>Cost Trend</h3>
+      <div className="chart-filter-notice" style={{ justifyContent: 'flex-start', gap: '16px' }}>
+        <span>Min: {formatCurrency(minCost)}</span>
+        <span>Max: {formatCurrency(maxCost)}</span>
+      </div>
       {filtered && (
         <div className="chart-filter-notice">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -67,7 +89,8 @@ export default function CostTrendChart({ data, filtered }: CostTrendChartProps) 
             />
             <YAxis
               tick={{ fill: '#6b7280', fontSize: 12 }}
-              tickFormatter={(value) => `$${value.toFixed(0)}`}
+              tickFormatter={formatTickValue}
+              domain={[paddedMin, paddedMax]}
             />
             <Tooltip
               formatter={(value) => formatCurrency(Number(value))}
