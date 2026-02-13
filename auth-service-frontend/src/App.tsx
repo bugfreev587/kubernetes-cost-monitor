@@ -94,7 +94,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function PublicRoute({ children }: { children: React.ReactNode }) {
+function PublicRoute({ children, fallbackRedirect = "/dashboard" }: { children: React.ReactNode, fallbackRedirect?: string }) {
   const { isLoaded, isSignedIn } = useAuth()
 
   if (!isLoaded) {
@@ -108,13 +108,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isSignedIn) {
-    // If user has selected a pricing plan, redirect to dashboard
-    // Otherwise, redirect to features page
     const selectedPlan = localStorage.getItem('selected_pricing_plan')
     if (selectedPlan) {
       return <Navigate to="/dashboard" replace />
     }
-    return <Navigate to="/features" replace />
+    return <Navigate to={fallbackRedirect} replace />
   }
 
   return <>{children}</>
@@ -134,7 +132,7 @@ function PublicHomeRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isSignedIn) {
-    return <Navigate to="/features" replace />
+    return <Navigate to="/pricing" replace />
   }
 
   return <>{children}</>
@@ -173,7 +171,7 @@ function App() {
           <Route
             path="/sign-up"
             element={
-              <PublicRoute>
+              <PublicRoute fallbackRedirect="/pricing">
                 <SignUpPage />
               </PublicRoute>
             }
