@@ -1,0 +1,241 @@
+/* Features Page Styling */
+.features-container {
+  width: 100%;
+  max-width: 1200px;
+  padding: 2rem 1rem;
+}
+
+/* Hero Header */
+.features-hero {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.features-hero h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 1rem 0;
+}
+
+.features-hero-subtitle {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0 0 2rem 0;
+  line-height: 1.6;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.features-hero-cta {
+  display: inline-block;
+}
+
+/* Section Headers */
+.features-section {
+  margin-bottom: 4rem;
+}
+
+.features-section-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.features-section-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 0.75rem 0;
+}
+
+.features-section-header p {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+}
+
+/* How It Works - Step Cards */
+.features-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+.features-step-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  text-align: center;
+}
+
+.features-step-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+}
+
+.features-step-number {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #646cff;
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+}
+
+.features-step-card h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #213547;
+  margin: 0 0 0.75rem 0;
+}
+
+.features-step-card p {
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Core Feature Grid */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+.features-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.features-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+}
+
+.features-card-icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 1rem;
+  color: #646cff;
+}
+
+.features-card h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #213547;
+  margin: 0 0 0.75rem 0;
+}
+
+.features-card p {
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Why k8s-cost - Advantage Cards */
+.features-advantages {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+}
+
+.features-advantage-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-left: 4px solid #646cff;
+}
+
+.features-advantage-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
+}
+
+.features-advantage-card h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #213547;
+  margin: 0 0 0.75rem 0;
+}
+
+.features-advantage-card p {
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Bottom CTA */
+.features-bottom-cta {
+  text-align: center;
+  padding: 3rem 0 1rem;
+}
+
+.features-bottom-cta h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 2rem 0;
+}
+
+.features-bottom-cta-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .features-hero h1 {
+    font-size: 2rem;
+  }
+
+  .features-hero-subtitle {
+    font-size: 1rem;
+  }
+
+  .features-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .features-advantages {
+    grid-template-columns: 1fr;
+  }
+
+  .features-section-header h2 {
+    font-size: 1.6rem;
+  }
+
+  .features-bottom-cta h2 {
+    font-size: 1.6rem;
+  }
+
+  .features-bottom-cta-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .features-bottom-cta-buttons .cta-button {
+    width: 100%;
+  }
+}
