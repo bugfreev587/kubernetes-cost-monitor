@@ -132,7 +132,7 @@ function PublicHomeRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (isSignedIn) {
-    return <Navigate to="/pricing" replace />
+    return <Navigate to="/dashboard" replace />
   }
 
   return <>{children}</>
